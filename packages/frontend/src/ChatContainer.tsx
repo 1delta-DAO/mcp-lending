@@ -1,5 +1,6 @@
 import React from 'react';
 import axios from 'axios';
+import ReactMarkdown from 'react-markdown';
 
 interface Message {
   id: string;
@@ -92,13 +93,19 @@ export default function ChatContainer() {
               className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-xs lg:max-w-md px-4 py-3 rounded-lg ${
+                className={`px-4 py-3 rounded-lg ${
                   message.type === 'user'
-                    ? 'bg-blue-600 text-white rounded-br-none'
-                    : 'bg-gray-200 text-gray-900 rounded-bl-none'
+                    ? 'max-w-xs lg:max-w-md bg-blue-600 text-white rounded-br-none'
+                    : 'max-w-xl lg:max-w-2xl bg-gray-200 text-gray-900 rounded-bl-none'
                 }`}
               >
-                <p className="text-sm">{message.content}</p>
+                {message.type === 'user' ? (
+                  <p className="text-sm">{message.content}</p>
+                ) : (
+                  <div className="text-sm prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0">
+                    <ReactMarkdown>{message.content}</ReactMarkdown>
+                  </div>
+                )}
                 <span className={`text-xs mt-2 block ${message.type === 'user' ? 'text-blue-100' : 'text-gray-600'}`}>
                   {message.timestamp.toLocaleTimeString()}
                 </span>
