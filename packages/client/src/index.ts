@@ -73,7 +73,7 @@ async function main() {
     if (req.method === "POST" && req.url === "/chat") {
       try {
         const body = await readBody(req);
-        const { query } = JSON.parse(body) as { query?: string };
+        const { query, userAddress } = JSON.parse(body) as { query?: string; userAddress?: string };
 
         if (!query || typeof query !== "string") {
           res.writeHead(400, { "Content-Type": "application/json" });
@@ -81,9 +81,13 @@ async function main() {
           return;
         }
 
-        console.log(`\nQuery: ${query}`);
+        const fullQuery = userAddress
+          ? `The user's connected wallet address is: ${userAddress}\n\n${query}`
+          : query;
+
+        console.log(`\nQuery: ${query}${userAddress ? ` (wallet: ${userAddress})` : ""}`);
         const { tools } = await mcpClient.listTools();
-        const response = await aiProvider.processQuery(query, tools, callMCPTool);
+        const response = await aiProvider.processQuery(fullQuery, tools, callMCPTool);
 
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ response }));
