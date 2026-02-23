@@ -1,5 +1,7 @@
 import { AnthropicProvider } from "./anthropic.js";
 import { GoogleProvider } from "./google.js";
+import { GroqProvider } from "./groq.js";
+import { MistralProvider } from "./mistral.js";
 import type { AIProvider } from "./types.js";
 
 export type { AIProvider, MCPTool } from "./types.js";
@@ -11,6 +13,10 @@ export function createProvider(): AIProvider {
   switch (provider) {
     case "google":
       return new GoogleProvider();
+    case "groq":
+      return new GroqProvider();
+    case "mistral":
+      return new MistralProvider();
     case "anthropic":
     default:
       return new AnthropicProvider();
