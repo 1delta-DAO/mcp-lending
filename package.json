@@ -12,6 +12,8 @@
     "build:backend": "pnpm --filter @mcp-lending/backend build",
     "start:client": "pnpm --filter @mcp-lending/client start",
     "start:frontend": "pnpm --filter @mcp-lending/frontend dev",
+    "deploy:backend": "railway up --service backend",
+    "deploy:frontend": "pnpm --filter @mcp-lending/frontend deploy:railway",    
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint"
   },
