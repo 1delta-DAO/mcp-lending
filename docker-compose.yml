@@ -1,0 +1,27 @@
+services:
+  # MCP client HTTP server — spawns the MCP backend as a child process
+  client:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${PORT:-3001}:3001"
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      PORT: 3001
+    restart: unless-stopped
+
+  # React chat UI served by nginx
+  frontend:
+    build:
+      context: .
+      dockerfile: packages/frontend/Dockerfile
+      args:
+        # The browser must be able to reach this URL — use your server's public IP/hostname.
+        VITE_CLIENT_URL: ${VITE_CLIENT_URL:-http://localhost:3001}
+        VITE_BASE_PATH: ${VITE_BASE_PATH:-/}
+    ports:
+      - "80:80"
+    depends_on:
+      - client
+    restart: unless-stopped
