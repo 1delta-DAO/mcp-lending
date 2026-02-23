@@ -1,9 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { AIProvider, MCPTool } from "./types.js";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyRecord = Record<string, any>;
-
 export class AnthropicProvider implements AIProvider {
   private client: Anthropic;
 
@@ -19,17 +16,15 @@ export class AnthropicProvider implements AIProvider {
     tools: MCPTool[],
     callTool: (name: string, input: Record<string, unknown>) => Promise<string>
   ): Promise<string> {
-    const toolDefs = tools.map((t) => ({
+    const toolDefs: Anthropic.Tool[] = tools.map((t) => ({
       name: t.name,
       description: t.description ?? "",
-      input_schema: (t.inputSchema as AnyRecord) ?? { type: "object", properties: {} },
+      input_schema: t.inputSchema as Anthropic.Tool["input_schema"],
     }));
 
-    const messages: AnyRecord[] = [{ role: "user", content: userQuery }];
+    const messages: Anthropic.MessageParam[] = [{ role: "user", content: userQuery }];
 
-    let response: AnyRecord = await (
-      this.client.messages.create as unknown as (p: AnyRecord) => Promise<AnyRecord>
-    )({
+    let response = await this.client.messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 4096,
       tools: toolDefs,
@@ -37,12 +32,12 @@ export class AnthropicProvider implements AIProvider {
     });
 
     while (response.stop_reason === "tool_use") {
-      const toolResults: AnyRecord[] = [];
+      const toolResults: Anthropic.ToolResultBlockParam[] = [];
 
-      for (const block of response.content as AnyRecord[]) {
+      for (const block of response.content) {
         if (block.type === "tool_use") {
           console.log(`→ tool: ${block.name}`);
-          const result = await callTool(block.name as string, block.input as Record<string, unknown>);
+          const result = await callTool(block.name, block.input as Record<string, unknown>);
           toolResults.push({ type: "tool_result", tool_use_id: block.id, content: result });
         }
       }
@@ -50,9 +45,7 @@ export class AnthropicProvider implements AIProvider {
       messages.push({ role: "assistant", content: response.content });
       messages.push({ role: "user", content: toolResults });
 
-      response = await (
-        this.client.messages.create as unknown as (p: AnyRecord) => Promise<AnyRecord>
-      )({
+      response = await this.client.messages.create({
         model: "claude-sonnet-4-6",
         max_tokens: 4096,
         tools: toolDefs,
@@ -60,9 +53,9 @@ export class AnthropicProvider implements AIProvider {
       });
     }
 
-    return (response.content as AnyRecord[])
-      .filter((b) => b.type === "text")
-      .map((b) => b.text as string)
+    return response.content
+      .filter((b): b is Anthropic.TextBlock => b.type === "text")
+      .map((b) => b.text)
       .join("");
   }
 }
