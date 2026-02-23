@@ -1,6 +1,7 @@
 import React from 'react';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface Message {
   id: string;
@@ -103,7 +104,7 @@ export default function ChatContainer() {
                   <p className="text-sm">{message.content}</p>
                 ) : (
                   <div className="text-sm prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0">
-                    <ReactMarkdown>{message.content}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
                   </div>
                 )}
                 <span className={`text-xs mt-2 block ${message.type === 'user' ? 'text-blue-100' : 'text-gray-600'}`}>
