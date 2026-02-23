@@ -53,7 +53,7 @@ async function processQuery(userQuery: string): Promise<string> {
   const messages: AnyRecord[] = [{ role: "user", content: userQuery }];
 
   let response: AnyRecord = await (anthropic.messages.create as unknown as (p: AnyRecord) => Promise<AnyRecord>)({
-    model: "claude-3-5-sonnet-20241022",
+    model: "claude-sonnet-4-6",
     max_tokens: 4096,
     tools: toolDefs,
     messages,
@@ -75,7 +75,7 @@ async function processQuery(userQuery: string): Promise<string> {
     messages.push({ role: "user", content: toolResults });
 
     response = await (anthropic.messages.create as unknown as (p: AnyRecord) => Promise<AnyRecord>)({
-      model: "claude-3-5-sonnet-20241022",
+      model: "claude-sonnet-4-6",
       max_tokens: 4096,
       tools: toolDefs,
       messages,
