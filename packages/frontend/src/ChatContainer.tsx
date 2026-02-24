@@ -66,7 +66,9 @@ export default function ChatContainer() {
     if (stored !== null) return stored === 'true';
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
-  const [selectedProvider, setSelectedProvider] = React.useState<string>('anthropic');
+  const [selectedProvider, setSelectedProvider] = React.useState<string>(
+    () => localStorage.getItem('selectedProvider') ?? 'anthropic'
+  );
   const [availableProviders, setAvailableProviders] = React.useState<string[]>([]);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
@@ -85,7 +87,11 @@ export default function ChatContainer() {
     axios.get<{ providers: string[] }>(`${clientUrl}/providers`)
       .then(({ data }) => {
         setAvailableProviders(data.providers);
-        setSelectedProvider(prev => data.providers.includes(prev) ? prev : data.providers[0]);
+        setSelectedProvider(prev => {
+          const next = data.providers.includes(prev) ? prev : data.providers[0];
+          localStorage.setItem('selectedProvider', next);
+          return next;
+        });
       })
       .catch(() => {});
   }, [clientUrl]);
@@ -191,7 +197,10 @@ export default function ChatContainer() {
             {availableProviders.length > 0 && (
               <select
                 value={selectedProvider}
-                onChange={e => setSelectedProvider(e.target.value)}
+                onChange={e => {
+                  setSelectedProvider(e.target.value);
+                  localStorage.setItem('selectedProvider', e.target.value);
+                }}
                 className={`text-xs px-2 py-1.5 rounded-lg border ${t.borderSm} ${t.cardBg} ${t.textSecondary} focus:outline-none focus:ring-2 focus:ring-blue-500 capitalize`}
               >
                 {availableProviders.map(p => (
