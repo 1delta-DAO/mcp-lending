@@ -1,6 +1,26 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { AIProvider, MCPTool } from "./types.js";
 
+// Retry an API call on 429 rate-limit errors using exponential backoff.
+// The Anthropic free tier has a 10k input-token-per-minute limit, so
+// waiting 60 s is usually enough for the window to reset.
+async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (err instanceof Anthropic.RateLimitError && attempt < maxRetries) {
+        const waitMs = Math.pow(2, attempt) * 30_000; // 30s, 60s, 120s
+        console.warn(`Rate limit hit — retrying in ${waitMs / 1000}s (attempt ${attempt + 1}/${maxRetries})…`);
+        await new Promise((r) => setTimeout(r, waitMs));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error("unreachable");
+}
+
 export class AnthropicProvider implements AIProvider {
   private client: Anthropic;
 
@@ -24,12 +44,14 @@ export class AnthropicProvider implements AIProvider {
 
     const messages: Anthropic.MessageParam[] = [{ role: "user", content: userQuery }];
 
-    let response = await this.client.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 4096,
-      tools: toolDefs,
-      messages,
-    });
+    let response = await withRetry(() =>
+      this.client.messages.create({
+        model: "claude-sonnet-4-6",
+        max_tokens: 4096,
+        tools: toolDefs,
+        messages,
+      })
+    );
 
     while (response.stop_reason === "tool_use") {
       const toolResults: Anthropic.ToolResultBlockParam[] = [];
@@ -45,12 +67,14 @@ export class AnthropicProvider implements AIProvider {
       messages.push({ role: "assistant", content: response.content });
       messages.push({ role: "user", content: toolResults });
 
-      response = await this.client.messages.create({
-        model: "claude-sonnet-4-6",
-        max_tokens: 4096,
-        tools: toolDefs,
-        messages,
-      });
+      response = await withRetry(() =>
+        this.client.messages.create({
+          model: "claude-sonnet-4-6",
+          max_tokens: 4096,
+          tools: toolDefs,
+          messages,
+        })
+      );
     }
 
     return response.content
