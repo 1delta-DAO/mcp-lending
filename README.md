@@ -77,8 +77,7 @@ A minimal React + Vite application providing a chat interface for the lending ag
 
 - **Node.js:** 18.0.0 or higher
 - **pnpm:** Latest version
-- **API Keys:**
-  - `ANTHROPIC_API_KEY` for Claude integration (required for client)
+- **API Keys:** One of `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`, `GROQ_API_KEY`, `MISTRAL_API_KEY`, `DEEPSEEK_API_KEY`, or `AGENT_ROUTER_TOKEN` depending on your chosen provider (see `packages/client/.env.example`)
 
 ### Installation
 
@@ -120,11 +119,12 @@ pnpm build && pnpm start
 
 The server listens on stdio for MCP protocol messages.
 
-#### Client (MCP + Claude)
+#### Client (MCP + AI Provider)
 
 ```bash
 cd packages/client
-ANTHROPIC_API_KEY=your_key_here pnpm dev
+cp .env.example .env   # set AI_PROVIDER and the corresponding API key
+pnpm dev
 ```
 
 #### Frontend (Chat UI)
@@ -208,9 +208,7 @@ The client's agentic loop in `packages/client/src/index.ts` can be extended to:
 
 ### Client Package
 
-```bash
-ANTHROPIC_API_KEY=sk-...  # Your Anthropic API key (required)
-```
+Set `AI_PROVIDER` and the matching key. See [`packages/client/.env.example`](packages/client/.env.example) for all options.
 
 ### API Credentials
 
@@ -234,9 +232,10 @@ This implementation is intentionally kept minimal for a proof of concept:
    pnpm build
    ```
 
-2. **Configure API Key:**
+2. **Configure provider:**
    ```bash
-   export ANTHROPIC_API_KEY=your_key_here
+   cp packages/client/.env.example packages/client/.env
+   # Set AI_PROVIDER and the corresponding API key
    ```
 
 3. **Test MCP Server:**
@@ -264,8 +263,8 @@ This implementation is intentionally kept minimal for a proof of concept:
 - Check that Node.js version ≥ 18.0.0
 - Verify stdio transport is working (no console.log in backend to stdout)
 
-### Claude API Errors
-- Verify `ANTHROPIC_API_KEY` is set correctly
+### AI Provider Errors
+- Verify the correct API key env var is set for your chosen provider
 - Check API key permissions and quotas
 
 ### Frontend Issues
@@ -279,6 +278,8 @@ This implementation is intentionally kept minimal for a proof of concept:
 - [MCP Client Examples](https://modelcontextprotocol.io/docs/develop/build-client)
 - [1Delta API Documentation](https://portal.1delta.io/v1/docs)
 - [Anthropic Claude API](https://docs.anthropic.com)
+- [DeepSeek API](https://platform.deepseek.com/docs)
+- [AgentRouter Docs](https://docs.agentrouter.org)
 
 ## License
 
