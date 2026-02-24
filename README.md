@@ -49,7 +49,7 @@ A TypeScript MCP server that exposes the 1Delta lending API through MCP tools. T
 
 A TypeScript application that:
 - Connects to the MCP backend server
-- Integrates with a configurable AI provider (Anthropic, Google, Groq, Mistral, DeepSeek, AgentRouter)
+- Integrates with a configurable AI provider (Anthropic, Google, Groq, Mistral, DeepSeek)
 - Implements an agentic loop for tool use
 
 **Architecture:**
@@ -77,7 +77,7 @@ A minimal React + Vite application providing a chat interface for the lending ag
 
 - **Node.js:** 18.0.0 or higher
 - **pnpm:** Latest version
-- **API Keys:** One of `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`, `GROQ_API_KEY`, `MISTRAL_API_KEY`, `DEEPSEEK_API_KEY`, or `AGENT_ROUTER_TOKEN` depending on your chosen provider (see `packages/client/.env.example`)
+- **API Keys:** One of `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`, `GROQ_API_KEY`, `MISTRAL_API_KEY`, `DEEPSEEK_API_KEY` depending on your chosen provider (see `packages/client/.env.example`)
 
 ### Installation
 
@@ -279,7 +279,6 @@ This implementation is intentionally kept minimal for a proof of concept:
 - [1Delta API Documentation](https://portal.1delta.io/v1/docs)
 - [Anthropic Claude API](https://docs.anthropic.com)
 - [DeepSeek API](https://platform.deepseek.com/docs)
-- [AgentRouter Docs](https://docs.agentrouter.org)
 
 ## License
 

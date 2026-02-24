@@ -5,7 +5,7 @@ Connects to the MCP backend server and integrates with a configurable AI provide
 ## Overview
 
 - MCP client connection to the backend server
-- Multi-provider AI integration (Anthropic, Google, Groq, Mistral, DeepSeek, AgentRouter)
+- Multi-provider AI integration (Anthropic, Google, Groq, Mistral, DeepSeek)
 - Agentic loop for autonomous tool use
 - Example queries demonstrating capabilities
 
