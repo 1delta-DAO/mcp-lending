@@ -4,12 +4,14 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useConnection } from 'wagmi';
 import { WalletButton } from './WalletButton';
+import { TxExecutor, type TxStep } from './TxExecutor';
 
 interface Message {
   id: string;
   type: 'user' | 'agent';
   content: string;
   timestamp: Date;
+  transactions?: TxStep[];
 }
 
 export default function ChatContainer() {
@@ -57,7 +59,7 @@ export default function ChatContainer() {
 
     try {
       const clientUrl = import.meta.env.VITE_CLIENT_URL ?? 'http://localhost:3001';
-      const { data } = await axios.post<{ response: string }>(
+      const { data } = await axios.post<{ response: string; transactions?: TxStep[] }>(
         `${clientUrl}/chat`,
         { query: input, userAddress: address }
       );
@@ -67,6 +69,7 @@ export default function ChatContainer() {
         type: 'agent',
         content: data.response,
         timestamp: new Date(),
+        transactions: data.transactions,
       };
 
       setMessages(prev => [...prev, agentMessage]);
@@ -143,8 +146,11 @@ export default function ChatContainer() {
                 {message.type === 'user' ? (
                   <p className="text-sm">{message.content}</p>
                 ) : (
-                  <div className="text-sm prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0">
+                  <div className="text-sm prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0 [overflow-wrap:anywhere]">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+                    {message.transactions && message.transactions.length > 0 && (
+                      <TxExecutor steps={message.transactions} />
+                    )}
                   </div>
                 )}
                 <span className={`text-xs mt-2 block ${message.type === 'user' ? 'text-blue-100' : 'text-gray-600 dark:text-gray-400'}`}>
