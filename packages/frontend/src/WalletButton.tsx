@@ -1,4 +1,5 @@
 import { useConnect, useDisconnect, useConnection } from "wagmi";
+import { t } from "./theme";
 
 export function WalletButton() {
   const { address, status } = useConnection();
@@ -18,7 +19,7 @@ export function WalletButton() {
         </span>
         <button
           onClick={() => disconnect()}
-          className="px-3 py-1.5 rounded-lg text-xs font-medium bg-stone-300 hover:bg-stone-400 dark:bg-gray-700 dark:hover:bg-gray-600 text-stone-700 dark:text-gray-200 transition-colors"
+          className={`px-3 py-1.5 rounded-lg text-xs font-medium ${t.cardBg} ${t.hoverCard} ${t.textSecondary} transition-colors`}
         >
           Disconnect
         </button>

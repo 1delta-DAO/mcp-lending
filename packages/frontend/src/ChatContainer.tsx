@@ -6,6 +6,7 @@ import { useConnection } from 'wagmi';
 import { WalletButton } from './WalletButton';
 import { TxExecutor, type TxStep } from './TxExecutor';
 import { Sidebar } from './Sidebar';
+import { t } from './theme';
 
 interface Message {
   id: string;
@@ -167,7 +168,7 @@ export default function ChatContainer() {
   };
 
   return (
-    <div className="flex flex-row h-screen bg-stone-300 dark:bg-gray-900">
+    <div className={`flex flex-row h-screen ${t.pageBg}`}>
       {/* Sidebar */}
       <Sidebar
         chats={chats}
@@ -180,18 +181,18 @@ export default function ChatContainer() {
       {/* Main chat area */}
       <div className="flex flex-col flex-1 min-w-0">
         {/* Header */}
-        <div className="bg-stone-200 dark:bg-gray-800 border-b border-stone-400 dark:border-gray-700 px-6 py-4 shadow-sm flex items-center justify-between">
+        <div className={`${t.panelBg} border-b ${t.border} px-6 py-4 shadow-sm flex items-center justify-between`}>
           <div>
-            <h1 className="text-2xl font-bold text-stone-900 dark:text-white">Lending Agent</h1>
-            <p className="text-sm text-stone-600 dark:text-gray-400 mt-1">AI-powered lending platform assistant</p>
-            <p className="text-xs text-stone-500 dark:text-gray-500 mt-0.5">by 1delta</p>
+            <h1 className={`text-2xl font-bold ${t.textPrimary}`}>Lending Agent</h1>
+            <p className={`text-sm ${t.textSecondary} mt-1`}>AI-powered lending platform assistant</p>
+            <p className={`text-xs ${t.textMuted} mt-0.5`}>by 1delta</p>
           </div>
           <div className="flex items-center gap-3">
             {availableProviders.length > 0 && (
               <select
                 value={selectedProvider}
                 onChange={e => setSelectedProvider(e.target.value)}
-                className="text-xs px-2 py-1.5 rounded-lg border border-stone-400 dark:border-gray-600 bg-stone-100 dark:bg-gray-700 text-stone-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 capitalize"
+                className={`text-xs px-2 py-1.5 rounded-lg border ${t.borderSm} ${t.cardBg} ${t.textSecondary} focus:outline-none focus:ring-2 focus:ring-blue-500 capitalize`}
               >
                 {availableProviders.map(p => (
                   <option key={p} value={p}>{p}</option>
@@ -201,7 +202,7 @@ export default function ChatContainer() {
             <WalletButton />
             <button
               onClick={() => setDarkMode(d => !d)}
-              className="p-2 rounded-lg text-stone-600 dark:text-gray-400 hover:bg-stone-300 dark:hover:bg-gray-700 transition"
+              className={`p-2 rounded-lg ${t.textSecondary} ${t.hover} transition`}
               aria-label="Toggle dark mode"
             >
               {darkMode ? (
@@ -218,10 +219,10 @@ export default function ChatContainer() {
         </div>
 
         {/* Messages Container */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-stone-300 dark:bg-gray-900">
+        <div className={`flex-1 overflow-y-auto p-6 space-y-4 ${t.pageBg}`}>
           {messages.length === 0 ? (
             <div className="flex items-center justify-center h-full">
-              <div className="text-center text-stone-500 dark:text-gray-400">
+              <div className={`text-center ${t.textMuted}`}>
                 <p className="text-lg font-medium">Welcome to Lending Agent</p>
                 <p className="text-sm mt-2">Start by asking about lending markets, positions, or actions</p>
                 {!address && (
@@ -241,7 +242,7 @@ export default function ChatContainer() {
                   className={`px-4 py-3 rounded-lg ${
                     message.type === 'user'
                       ? 'max-w-xs lg:max-w-md bg-blue-600 text-white rounded-br-none'
-                      : 'max-w-xl lg:max-w-2xl bg-stone-100 dark:bg-gray-700 text-stone-900 dark:text-gray-100 rounded-bl-none'
+                      : `max-w-xl lg:max-w-2xl ${t.cardBg} ${t.textPrimary} rounded-bl-none`
                   }`}
                 >
                   {message.type === 'user' ? (
@@ -254,7 +255,7 @@ export default function ChatContainer() {
                       )}
                     </div>
                   )}
-                  <span className={`text-xs mt-2 block ${message.type === 'user' ? 'text-blue-100' : 'text-stone-500 dark:text-gray-400'}`}>
+                  <span className={`text-xs mt-2 block ${message.type === 'user' ? 'text-blue-100' : t.textMuted}`}>
                     {message.timestamp.toLocaleTimeString()}
                   </span>
                 </div>
@@ -263,11 +264,11 @@ export default function ChatContainer() {
           )}
           {isLoading && (
             <div className="flex justify-start">
-              <div className="bg-stone-100 dark:bg-gray-700 text-stone-900 px-4 py-3 rounded-lg rounded-bl-none">
+              <div className={`${t.cardBg} ${t.textPrimary} px-4 py-3 rounded-lg rounded-bl-none`}>
                 <div className="flex space-x-2">
-                  <div className="w-2 h-2 bg-stone-400 dark:bg-gray-400 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-stone-400 dark:bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                  <div className="w-2 h-2 bg-stone-400 dark:bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  <div className={`w-2 h-2 ${t.mutedBg} rounded-full animate-bounce`}></div>
+                  <div className={`w-2 h-2 ${t.mutedBg} rounded-full animate-bounce`} style={{ animationDelay: '0.1s' }}></div>
+                  <div className={`w-2 h-2 ${t.mutedBg} rounded-full animate-bounce`} style={{ animationDelay: '0.2s' }}></div>
                 </div>
               </div>
             </div>
@@ -276,7 +277,7 @@ export default function ChatContainer() {
         </div>
 
         {/* Input Form */}
-        <div className="bg-stone-200 dark:bg-gray-800 border-t border-stone-400 dark:border-gray-700 px-6 py-4">
+        <div className={`${t.panelBg} border-t ${t.border} px-6 py-4`}>
           <form onSubmit={handleSendMessage} className="flex gap-3">
             <input
               type="text"
@@ -284,12 +285,12 @@ export default function ChatContainer() {
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ask about lending markets, positions, or actions..."
               disabled={isLoading}
-              className="flex-1 px-4 py-2 border border-stone-400 dark:border-gray-600 rounded-lg bg-stone-100 dark:bg-gray-700 text-stone-900 dark:text-white placeholder-stone-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-stone-200 dark:disabled:bg-gray-600"
+              className={`flex-1 px-4 py-2 border ${t.borderSm} rounded-lg ${t.cardBg} ${t.textPrimary} placeholder-stone-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60`}
             />
             <button
               type="submit"
               disabled={isLoading || !input.trim()}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-stone-400 dark:disabled:bg-gray-600 font-medium transition"
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium transition"
             >
               Send
             </button>
