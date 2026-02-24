@@ -30,6 +30,46 @@ async function initializeMCPClient(): Promise<Client> {
   return mcp;
 }
 
+// Transaction step extracted from action tool results.
+interface TxStep {
+  description: string;
+  to: string;
+  data: string;
+  value: string; // hex or decimal string
+}
+
+// Action tools whose results may contain transaction calldata.
+const ACTION_TOOLS = new Set([
+  "get_deposit_calldata",
+  "get_withdraw_calldata",
+  "get_borrow_calldata",
+  "get_repay_calldata",
+]);
+
+// Extract tx steps from the 1Delta response schema:
+// { actions: { permissions: [{to, data, value, info}], transactions: [{to, data, value}] } }
+function extractTxSteps(toolName: string, rawJson: string): TxStep[] {
+  try {
+    const body = JSON.parse(rawJson);
+    const actions = body?.actions ?? body;
+    const baseDesc = toolName.replace("get_", "").replace("_calldata", "");
+    const steps: TxStep[] = [];
+    // permissions = ERC-20 approvals (must execute first)
+    for (const p of (actions?.permissions ?? [])) {
+      if (p?.to && p?.data) {
+        steps.push({ description: p.info ?? "approve", to: p.to, data: p.data, value: p.value ?? "0x0" });
+      }
+    }
+    // transactions = main action calldata
+    for (const t of (actions?.transactions ?? [])) {
+      if (t?.to && t?.data) {
+        steps.push({ description: baseDesc, to: t.to, data: t.data, value: t.value ?? "0x0" });
+      }
+    }
+    return steps;
+  } catch { return []; }
+}
+
 // Cap tool results to keep input token counts within rate limits.
 // ~4 chars per token → 6000 chars ≈ 1500 tokens per tool result.
 const TOOL_RESULT_CHAR_LIMIT = 6000;
@@ -97,10 +137,24 @@ async function main() {
 
         console.log(`\nQuery: ${query}${userAddress ? ` (wallet: ${userAddress})` : ""}`);
         const { tools } = await mcpClient.listTools();
-        const response = await aiProvider.processQuery(fullQuery, tools, callMCPTool);
+
+        // Collect transaction calldata returned by action tools during this request.
+        const collectedTxSteps: TxStep[] = [];
+        const trackingCallTool = async (name: string, input: Record<string, unknown>): Promise<string> => {
+          const result = await callMCPTool(name, input);
+          if (ACTION_TOOLS.has(name)) {
+            collectedTxSteps.push(...extractTxSteps(name, result));
+          }
+          return result;
+        };
+
+        const response = await aiProvider.processQuery(fullQuery, tools, trackingCallTool);
 
         res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ response }));
+        res.end(JSON.stringify({
+          response,
+          ...(collectedTxSteps.length > 0 && { transactions: collectedTxSteps }),
+        }));
       } catch (err) {
         console.error("Error processing query:", err);
         res.writeHead(500, { "Content-Type": "application/json" });
