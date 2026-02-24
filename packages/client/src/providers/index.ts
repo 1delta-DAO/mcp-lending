@@ -3,6 +3,7 @@ import { DeepSeekProvider } from "./deepseek.js";
 import { GoogleProvider } from "./google.js";
 import { GroqProvider } from "./groq.js";
 import { MistralProvider } from "./mistral.js";
+import { OpenAIProvider } from "./openai.js";
 import type { AIProvider } from "./types.js";
 
 export type { AIProvider, MCPTool } from "./types.js";
@@ -20,6 +21,8 @@ export function createProvider(): AIProvider {
       return new GroqProvider();
     case "mistral":
       return new MistralProvider();
+    case "openai":
+      return new OpenAIProvider();
     case "anthropic":
     default:
       return new AnthropicProvider();
