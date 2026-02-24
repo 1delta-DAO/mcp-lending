@@ -1,11 +1,12 @@
 import React from 'react';
-import { useSendTransaction } from 'wagmi';
+import { useAccount, useSendTransaction, useSwitchChain } from 'wagmi';
 
 export interface TxStep {
   description: string;
   to: string;
   data: string;
   value: string;
+  chainId?: number;
 }
 
 type StepStatus = 'idle' | 'pending' | 'success' | 'error';
@@ -50,6 +51,8 @@ export function TxExecutor({ steps }: { steps: TxStep[] }) {
   const [errors, setErrors] = React.useState<(string | undefined)[]>(steps.map(() => undefined));
   const [running, setRunning] = React.useState(false);
   const { sendTransactionAsync } = useSendTransaction();
+  const { chainId: currentChainId } = useAccount();
+  const { switchChainAsync } = useSwitchChain();
 
   const allDone = statuses.every(s => s === 'success');
   const hasFailed = statuses.some(s => s === 'error');
@@ -60,10 +63,14 @@ export function TxExecutor({ steps }: { steps: TxStep[] }) {
       if (statuses[i] === 'success') continue;
       setStatuses(prev => prev.map((s, idx) => idx === i ? 'pending' : s));
       try {
+        const step = steps[i];
+        if (step.chainId && step.chainId !== currentChainId) {
+          await switchChainAsync({ chainId: step.chainId });
+        }
         const hash = await sendTransactionAsync({
-          to: steps[i].to as `0x${string}`,
-          data: steps[i].data as `0x${string}`,
-          value: parseValue(steps[i].value),
+          to: step.to as `0x${string}`,
+          data: step.data as `0x${string}`,
+          value: parseValue(step.value),
         });
         setStatuses(prev => prev.map((s, idx) => idx === i ? 'success' : s));
         setHashes(prev => prev.map((h, idx) => idx === i ? hash : h));

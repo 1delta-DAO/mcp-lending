@@ -36,6 +36,7 @@ interface TxStep {
   to: string;
   data: string;
   value: string; // hex or decimal string
+  chainId?: number;
 }
 
 // Action tools whose results may contain transaction calldata.
@@ -46,24 +47,34 @@ const ACTION_TOOLS = new Set([
   "get_repay_calldata",
 ]);
 
+// Extract chainId from marketUid ("lender:chainId:tokenAddress").
+function chainIdFromMarketUid(marketUid: unknown): number | undefined {
+  if (typeof marketUid !== "string") return undefined;
+  const parts = marketUid.split(":");
+  if (parts.length < 2) return undefined;
+  const id = parseInt(parts[1], 10);
+  return isNaN(id) ? undefined : id;
+}
+
 // Extract tx steps from the 1Delta response schema:
 // { actions: { permissions: [{to, data, value, info}], transactions: [{to, data, value}] } }
-function extractTxSteps(toolName: string, rawJson: string): TxStep[] {
+function extractTxSteps(toolName: string, rawJson: string, input: Record<string, unknown>): TxStep[] {
   try {
     const body = JSON.parse(rawJson);
     const actions = body?.actions ?? body;
     const baseDesc = toolName.replace("get_", "").replace("_calldata", "");
+    const chainId = chainIdFromMarketUid(input.marketUid);
     const steps: TxStep[] = [];
     // permissions = ERC-20 approvals (must execute first)
     for (const p of (actions?.permissions ?? [])) {
       if (p?.to && p?.data) {
-        steps.push({ description: p.info ?? "approve", to: p.to, data: p.data, value: p.value ?? "0x0" });
+        steps.push({ description: p.info ?? "approve", to: p.to, data: p.data, value: p.value ?? "0x0", chainId });
       }
     }
     // transactions = main action calldata
     for (const t of (actions?.transactions ?? [])) {
       if (t?.to && t?.data) {
-        steps.push({ description: baseDesc, to: t.to, data: t.data, value: t.value ?? "0x0" });
+        steps.push({ description: baseDesc, to: t.to, data: t.data, value: t.value ?? "0x0", chainId });
       }
     }
     return steps;
@@ -143,7 +154,7 @@ async function main() {
         const trackingCallTool = async (name: string, input: Record<string, unknown>): Promise<string> => {
           const result = await callMCPTool(name, input);
           if (ACTION_TOOLS.has(name)) {
-            collectedTxSteps.push(...extractTxSteps(name, result));
+            collectedTxSteps.push(...extractTxSteps(name, result, input));
           }
           return result;
         };
