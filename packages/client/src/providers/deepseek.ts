@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import type { AIProvider, MCPTool } from "./types.js";
+import { SYSTEM_PROMPT } from "./types.js";
 
 // DeepSeek models with tool calling support:
 // - deepseek-chat  (DeepSeek-V3, best for general tasks)
@@ -34,13 +35,7 @@ export class DeepSeekProvider implements AIProvider {
     }));
 
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-      {
-        role: "system",
-        content:
-          "You are a helpful DeFi lending assistant. You have access to tools that query lending markets, " +
-          "user positions, token balances, and generate calldata for deposit, withdraw, borrow, and repay operations. " +
-          "Always use the available tools to answer questions — never say a task is outside your scope.",
-      },
+      { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: userQuery },
     ];
 

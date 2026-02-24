@@ -1,5 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import type { AIProvider, MCPTool } from "./types.js";
+import { SYSTEM_PROMPT } from "./types.js";
 
 const MODEL = "gemini-2.5-flash-lite";
 
@@ -51,7 +52,7 @@ export class GoogleProvider implements AIProvider {
 
     const chat = this.ai.chats.create({
       model: MODEL,
-      config: { tools: [{ functionDeclarations }] },
+      config: { systemInstruction: SYSTEM_PROMPT, tools: [{ functionDeclarations }] },
     });
 
     let response = await chat.sendMessage({ message: userQuery });

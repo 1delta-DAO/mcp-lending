@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { AIProvider, MCPTool } from "./types.js";
+import { SYSTEM_PROMPT } from "./types.js";
 
 // Retry an API call on 429 rate-limit errors using exponential backoff.
 // The Anthropic free tier has a 10k input-token-per-minute limit, so
@@ -48,6 +49,7 @@ export class AnthropicProvider implements AIProvider {
       this.client.messages.create({
         model: "claude-sonnet-4-6",
         max_tokens: 4096,
+        system: SYSTEM_PROMPT,
         tools: toolDefs,
         messages,
       })
@@ -71,6 +73,7 @@ export class AnthropicProvider implements AIProvider {
         this.client.messages.create({
           model: "claude-sonnet-4-6",
           max_tokens: 4096,
+          system: SYSTEM_PROMPT,
           tools: toolDefs,
           messages,
         })

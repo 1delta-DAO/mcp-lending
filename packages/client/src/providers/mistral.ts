@@ -6,6 +6,7 @@ import type {
   UserMessage,
 } from "@mistralai/mistralai/models/components/index.js";
 import type { AIProvider, MCPTool } from "./types.js";
+import { SYSTEM_PROMPT } from "./types.js";
 
 // Free tier: ~1B tokens/month, generous rate limits
 // mistral-small-latest has strong function calling support
@@ -39,6 +40,7 @@ export class MistralProvider implements AIProvider {
     }));
 
     const messages: Messages = [
+      { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: userQuery },
     ];
 

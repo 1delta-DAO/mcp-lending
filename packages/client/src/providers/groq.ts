@@ -1,5 +1,6 @@
 import Groq from "groq-sdk";
 import type { AIProvider, MCPTool } from "./types.js";
+import { SYSTEM_PROMPT } from "./types.js";
 
 // Models with tool calling support on Groq free tier:
 // - llama-3.3-70b-versatile  (best quality, 30 RPM / 14,400 RPD)
@@ -34,13 +35,7 @@ export class GroqProvider implements AIProvider {
     }));
 
     const messages: Groq.Chat.ChatCompletionMessageParam[] = [
-      {
-        role: "system",
-        content:
-          "You are a helpful DeFi lending assistant. You have access to tools that query lending markets, " +
-          "user positions, token balances, and generate calldata for deposit, withdraw, borrow, and repay operations. " +
-          "Always use the available tools to answer questions — never say a task is outside your scope.",
-      },
+      { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: userQuery },
     ];
 
