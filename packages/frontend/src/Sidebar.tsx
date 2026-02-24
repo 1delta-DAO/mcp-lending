@@ -37,7 +37,7 @@ export function Sidebar({ chats, activeChatId, onSelect, onNew, darkMode: _ }: S
       </div>
 
       {/* Chat list */}
-      <div className="flex-1 overflow-y-auto py-2">
+      <div className="flex-1 overflow-y-auto themed-scrollbar py-2">
         {chats.length === 0 ? (
           <p className={`text-xs ${t.textFaint} px-4 py-3`}>No chats yet</p>
         ) : (

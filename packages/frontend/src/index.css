@@ -20,3 +20,25 @@ html, body, #root {
   height: 100%;
   width: 100%;
 }
+
+/* Themed scrollbar */
+.themed-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #a8a29e transparent; /* stone-400 thumb, transparent track */
+}
+.dark .themed-scrollbar {
+  scrollbar-color: #4b5563 transparent; /* gray-600 thumb */
+}
+.themed-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+.themed-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.themed-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #a8a29e;
+  border-radius: 999px;
+}
+.dark .themed-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #4b5563;
+}

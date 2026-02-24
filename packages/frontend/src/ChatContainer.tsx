@@ -219,18 +219,16 @@ export default function ChatContainer() {
         </div>
 
         {/* Messages Container */}
-        <div className={`flex-1 overflow-y-auto p-6 space-y-4 ${t.pageBg}`}>
+        <div className={`flex-1 overflow-y-auto themed-scrollbar ${t.pageBg} ${messages.length === 0 ? 'flex items-center justify-center' : 'p-6 space-y-4'}`}>
           {messages.length === 0 ? (
-            <div className="flex items-center justify-center h-full">
-              <div className={`text-center ${t.textMuted}`}>
-                <p className="text-lg font-medium">Welcome to Lending Agent</p>
-                <p className="text-sm mt-2">Start by asking about lending markets, positions, or actions</p>
-                {!address && (
-                  <p className="text-xs mt-3 text-blue-600 dark:text-blue-400">
-                    Connect your wallet to query your positions automatically
-                  </p>
-                )}
-              </div>
+            <div className={`text-center ${t.textMuted}`}>
+              <p className="text-lg font-medium">Welcome to Lending Agent</p>
+              <p className="text-sm mt-2">Start by asking about lending markets, positions, or actions</p>
+              {!address && (
+                <p className="text-xs mt-3 text-blue-600 dark:text-blue-400">
+                  Connect your wallet to query your positions automatically
+                </p>
+              )}
             </div>
           ) : (
             messages.map(message => (
