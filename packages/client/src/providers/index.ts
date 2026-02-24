@@ -12,6 +12,14 @@ export type { AIProvider, MCPTool } from "./types.js";
 export const PROVIDERS = ["anthropic", "openai", "openai-mini"] as const;
 export type ProviderName = typeof PROVIDERS[number];
 
+export interface ProviderInfo { company: string; model: string }
+
+export const PROVIDER_INFO: Record<ProviderName, ProviderInfo> = {
+  "anthropic":   { company: "Anthropic", model: "Claude Sonnet 4.6" },
+  "openai":      { company: "OpenAI",    model: "GPT-5 Nano"        },
+  "openai-mini": { company: "OpenAI",    model: "GPT-4o Mini"       },
+};
+
 export function createProvider(name?: string): AIProvider {
   const provider = (name ?? "anthropic").toLowerCase();
   console.log(`Using AI provider: ${provider}`);

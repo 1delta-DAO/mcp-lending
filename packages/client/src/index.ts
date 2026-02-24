@@ -2,7 +2,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { createServer } from "http";
 import type { IncomingMessage, ServerResponse } from "http";
-import { createProvider, PROVIDERS } from "./providers/index.js";
+import { createProvider, PROVIDERS, PROVIDER_INFO } from "./providers/index.js";
 
 const PORT = parseInt(process.env.PORT ?? "3001", 10);
 
@@ -128,7 +128,7 @@ async function main() {
 
     if (req.method === "GET" && req.url === "/providers") {
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ providers: PROVIDERS }));
+      res.end(JSON.stringify(PROVIDERS.map(id => ({ id, ...PROVIDER_INFO[id] }))));
       return;
     }
 

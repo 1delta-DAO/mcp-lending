@@ -69,7 +69,7 @@ export default function ChatContainer() {
   const [selectedProvider, setSelectedProvider] = React.useState<string>(
     () => localStorage.getItem('selectedProvider') ?? 'anthropic'
   );
-  const [availableProviders, setAvailableProviders] = React.useState<string[]>([]);
+  const [availableProviders, setAvailableProviders] = React.useState<{ id: string; company: string; model: string }[]>([]);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
   const { address } = useConnection();
@@ -84,11 +84,12 @@ export default function ChatContainer() {
   }, [chats]);
 
   React.useEffect(() => {
-    axios.get<{ providers: string[] }>(`${clientUrl}/providers`)
+    axios.get<{ id: string; company: string; model: string }[]>(`${clientUrl}/providers`)
       .then(({ data }) => {
-        setAvailableProviders(data.providers);
+        setAvailableProviders(data);
         setSelectedProvider(prev => {
-          const next = data.providers.includes(prev) ? prev : data.providers[0];
+          const ids = data.map(p => p.id);
+          const next = ids.includes(prev) ? prev : ids[0];
           localStorage.setItem('selectedProvider', next);
           return next;
         });
@@ -201,10 +202,10 @@ export default function ChatContainer() {
                   setSelectedProvider(e.target.value);
                   localStorage.setItem('selectedProvider', e.target.value);
                 }}
-                className={`text-xs px-2 py-1.5 rounded-lg border ${t.borderSm} ${t.cardBg} ${t.textSecondary} focus:outline-none focus:ring-2 focus:ring-blue-500 capitalize`}
+                className={`text-xs px-2 py-1.5 rounded-lg border ${t.borderSm} ${t.cardBg} ${t.textSecondary} focus:outline-none focus:ring-2 focus:ring-blue-500`}
               >
                 {availableProviders.map(p => (
-                  <option key={p} value={p}>{p}</option>
+                  <option key={p.id} value={p.id}>{p.company} — {p.model}</option>
                 ))}
               </select>
             )}
