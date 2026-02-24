@@ -4,11 +4,12 @@ import { GoogleProvider } from "./google.js";
 import { GroqProvider } from "./groq.js";
 import { MistralProvider } from "./mistral.js";
 import { OpenAIProvider } from "./openai.js";
+import { OpenAIMiniProvider } from "./openai-mini.js";
 import type { AIProvider } from "./types.js";
 
 export type { AIProvider, MCPTool } from "./types.js";
 
-export const PROVIDERS = ["anthropic", "openai"] as const;
+export const PROVIDERS = ["anthropic", "openai", "openai-mini"] as const;
 export type ProviderName = typeof PROVIDERS[number];
 
 export function createProvider(name?: string): AIProvider {
@@ -26,6 +27,8 @@ export function createProvider(name?: string): AIProvider {
       return new MistralProvider();
     case "openai":
       return new OpenAIProvider();
+    case "openai-mini":
+      return new OpenAIMiniProvider();
     case "anthropic":
     default:
       return new AnthropicProvider();
