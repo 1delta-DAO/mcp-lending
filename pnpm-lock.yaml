@@ -54,6 +54,9 @@ importers:
       groq-sdk:
         specifier: ^0.37.0
         version: 0.37.0
+      openai:
+        specifier: ^6.24.0
+        version: 6.24.0(ws@8.19.0)(zod@4.3.6)
     devDependencies:
       '@types/node':
         specifier: ^20.10.0
@@ -1662,6 +1665,18 @@ packages:
 
   once@1.4.0:
     resolution: {integrity: sha512-lNaJgI+2Q5URQBkccEKHTQOPaXdUxnZZElQTZY0MFUAuaEqe1E+Nyvgdz/aIyNi6Z9MzO5dv1H8n58/GELp3+w==}
+
+  openai@6.24.0:
+    resolution: {integrity: sha512-WLR+qki3S4c9ZHilR42GDTxEpTrMFeWfcFNg1RMELW0ZCCBJMDDlqVV+QQEM5KN2hjUyZu45QpgJmln/0ykFRg==}
+    hasBin: true
+    peerDependencies:
+      ws: ^8.18.0
+      zod: ^3.25 || ^4.0
+    peerDependenciesMeta:
+      ws:
+        optional: true
+      zod:
+        optional: true
 
   ox@0.12.4:
     resolution: {integrity: sha512-+P+C7QzuwPV8lu79dOwjBKfB2CbnbEXe/hfyyrff1drrO1nOOj3Hc87svHfcW1yneRr3WXaKr6nz11nq+/DF9Q==}
@@ -3901,6 +3916,11 @@ snapshots:
   once@1.4.0:
     dependencies:
       wrappy: 1.0.2
+
+  openai@6.24.0(ws@8.19.0)(zod@4.3.6):
+    optionalDependencies:
+      ws: 8.19.0
+      zod: 4.3.6
 
   ox@0.12.4(typescript@5.9.3)(zod@4.3.6):
     dependencies:

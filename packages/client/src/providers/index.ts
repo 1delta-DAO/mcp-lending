@@ -1,4 +1,6 @@
+import { AgentRouterProvider } from "./agentrouter.js";
 import { AnthropicProvider } from "./anthropic.js";
+import { DeepSeekProvider } from "./deepseek.js";
 import { GoogleProvider } from "./google.js";
 import { GroqProvider } from "./groq.js";
 import { MistralProvider } from "./mistral.js";
@@ -11,6 +13,8 @@ export function createProvider(): AIProvider {
   console.log(`Using AI provider: ${provider}`);
 
   switch (provider) {
+    case "deepseek":
+      return new DeepSeekProvider();
     case "google":
       return new GoogleProvider();
     case "groq":
