@@ -23,9 +23,21 @@ export default function ChatContainer() {
     if (stored !== null) return stored === 'true';
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
+  const [selectedProvider, setSelectedProvider] = React.useState<string>('anthropic');
+  const [availableProviders, setAvailableProviders] = React.useState<string[]>([]);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
   const { address } = useConnection();
+  const clientUrl = import.meta.env.VITE_CLIENT_URL ?? 'http://localhost:3001';
+
+  React.useEffect(() => {
+    axios.get<{ providers: string[] }>(`${clientUrl}/providers`)
+      .then(({ data }) => {
+        setAvailableProviders(data.providers);
+        setSelectedProvider(prev => data.providers.includes(prev) ? prev : data.providers[0]);
+      })
+      .catch(() => {});
+  }, [clientUrl]);
 
   React.useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
@@ -58,10 +70,9 @@ export default function ChatContainer() {
     setIsLoading(true);
 
     try {
-      const clientUrl = import.meta.env.VITE_CLIENT_URL ?? 'http://localhost:3001';
       const { data } = await axios.post<{ response: string; transactions?: TxStep[] }>(
         `${clientUrl}/chat`,
-        { query: input, userAddress: address }
+        { query: input, userAddress: address, provider: selectedProvider }
       );
 
       const agentMessage: Message = {
@@ -97,6 +108,17 @@ export default function ChatContainer() {
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">by 1delta</p>
         </div>
         <div className="flex items-center gap-3">
+          {availableProviders.length > 0 && (
+            <select
+              value={selectedProvider}
+              onChange={e => setSelectedProvider(e.target.value)}
+              className="text-xs px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 capitalize"
+            >
+              {availableProviders.map(p => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+          )}
           <WalletButton />
           <button
             onClick={() => setDarkMode(d => !d)}

@@ -2,8 +2,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { createServer } from "http";
 import type { IncomingMessage, ServerResponse } from "http";
-import { createProvider } from "./providers/index.js";
-import type { AIProvider } from "./providers/index.js";
+import { createProvider, PROVIDERS } from "./providers/index.js";
 
 const PORT = parseInt(process.env.PORT ?? "3001", 10);
 
@@ -12,7 +11,6 @@ const PORT = parseInt(process.env.PORT ?? "3001", 10);
 const BACKEND_PATH = new URL("../../backend/dist/index.js", import.meta.url).pathname;
 
 let mcpClient: Client;
-let aiProvider: AIProvider;
 
 async function initializeMCPClient(): Promise<Client> {
   const transport = new StdioClientTransport({
@@ -111,14 +109,11 @@ function readBody(req: IncomingMessage): Promise<string> {
 
 function cors(res: ServerResponse): void {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 }
 
 async function main() {
-  // createProvider() validates the required API key for the selected provider
-  aiProvider = createProvider();
-
   console.log("Initializing MCP client…");
   mcpClient = await initializeMCPClient();
 
@@ -131,10 +126,20 @@ async function main() {
       return;
     }
 
+    if (req.method === "GET" && req.url === "/providers") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ providers: PROVIDERS }));
+      return;
+    }
+
     if (req.method === "POST" && req.url === "/chat") {
       try {
         const body = await readBody(req);
-        const { query, userAddress } = JSON.parse(body) as { query?: string; userAddress?: string };
+        const { query, userAddress, provider } = JSON.parse(body) as {
+          query?: string;
+          userAddress?: string;
+          provider?: string;
+        };
 
         if (!query || typeof query !== "string") {
           res.writeHead(400, { "Content-Type": "application/json" });
@@ -142,11 +147,13 @@ async function main() {
           return;
         }
 
+        const aiProvider = createProvider(provider);
+
         const fullQuery = userAddress
           ? `The user's connected wallet address is: ${userAddress}\n\n${query}`
           : query;
 
-        console.log(`\nQuery: ${query}${userAddress ? ` (wallet: ${userAddress})` : ""}`);
+        console.log(`\nQuery: ${query}${userAddress ? ` (wallet: ${userAddress})` : ""}${provider ? ` (provider: ${provider})` : ""}`);
         const { tools } = await mcpClient.listTools();
 
         // Collect transaction calldata returned by action tools during this request.

@@ -8,8 +8,11 @@ import type { AIProvider } from "./types.js";
 
 export type { AIProvider, MCPTool } from "./types.js";
 
-export function createProvider(): AIProvider {
-  const provider = process.env.AI_PROVIDER?.toLowerCase() ?? "anthropic";
+export const PROVIDERS = ["anthropic", "openai"] as const;
+export type ProviderName = typeof PROVIDERS[number];
+
+export function createProvider(name?: string): AIProvider {
+  const provider = (name ?? "anthropic").toLowerCase();
   console.log(`Using AI provider: ${provider}`);
 
   switch (provider) {
