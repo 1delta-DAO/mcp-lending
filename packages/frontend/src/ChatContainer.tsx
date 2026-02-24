@@ -194,7 +194,7 @@ export default function ChatContainer() {
             <p className={`text-sm ${t.textSecondary} mt-1`}>AI-powered lending platform assistant</p>
             <p className={`text-xs ${t.textMuted} mt-0.5`}>by 1delta</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {availableProviders.length > 0 && (
               <select
                 value={selectedProvider}
@@ -202,25 +202,27 @@ export default function ChatContainer() {
                   setSelectedProvider(e.target.value);
                   localStorage.setItem('selectedProvider', e.target.value);
                 }}
-                className={`text-xs px-2 py-1.5 rounded-lg border ${t.borderSm} ${t.cardBg} ${t.textSecondary} focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                className={`text-xs px-2.5 py-1.5 rounded-full border ${t.borderSm} ${t.cardBg} ${t.textSecondary} focus:outline-none focus:ring-2 focus:ring-blue-500`}
               >
                 {availableProviders.map(p => (
                   <option key={p.id} value={p.id}>{p.company} — {p.model}</option>
                 ))}
               </select>
             )}
+            <div className={`w-px h-5 ${t.mutedBg} opacity-40`} />
             <WalletButton />
+            <div className={`w-px h-5 ${t.mutedBg} opacity-40`} />
             <button
               onClick={() => setDarkMode(d => !d)}
-              className={`p-2 rounded-lg ${t.textSecondary} ${t.hover} transition`}
+              className={`p-1.5 rounded-full ${t.textSecondary} ${t.hover} transition`}
               aria-label="Toggle dark mode"
             >
               {darkMode ? (
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m8.66-9h-1M4.34 12h-1m15.07-6.07-.71.71M6.34 17.66l-.71.71m12.73 0-.71-.71M6.34 6.34l-.71-.71M12 5a7 7 0 100 14A7 7 0 0012 5z" />
                 </svg>
               ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z" />
                 </svg>
               )}
