@@ -30,10 +30,20 @@ async function initializeMCPClient(): Promise<Client> {
   return mcp;
 }
 
+// Cap tool results to keep input token counts within rate limits.
+// ~4 chars per token → 6000 chars ≈ 1500 tokens per tool result.
+const TOOL_RESULT_CHAR_LIMIT = 6000;
+
 async function callMCPTool(name: string, input: Record<string, unknown>): Promise<string> {
   try {
     const response = await mcpClient.callTool({ name, arguments: input });
-    return JSON.stringify(response.content, null, 2);
+    // Extract the text payload directly instead of re-serialising the MCP envelope.
+    const text = (response.content as { type: string; text?: string }[])
+      .filter((c) => c.type === "text" && c.text)
+      .map((c) => c.text!)
+      .join("\n");
+    if (text.length <= TOOL_RESULT_CHAR_LIMIT) return text;
+    return text.slice(0, TOOL_RESULT_CHAR_LIMIT) + `\n[truncated — ${text.length - TOOL_RESULT_CHAR_LIMIT} chars omitted. Use tighter filters to reduce results.]`;
   } catch (err) {
     return `Tool error: ${err instanceof Error ? err.message : String(err)}`;
   }
