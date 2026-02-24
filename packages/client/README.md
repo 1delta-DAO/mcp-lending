@@ -1,84 +1,82 @@
 # MCP Client
 
-Connects to the MCP backend server and integrates with a configurable AI provider. Implements a complete agentic loop for tool use.
-
-## Overview
-
-- MCP client connection to the backend server
-- Multi-provider AI integration (Anthropic, Google, Groq, Mistral, DeepSeek)
-- Agentic loop for autonomous tool use
-- Example queries demonstrating capabilities
+HTTP server that bridges the frontend chat UI to the MCP backend. Spawns the backend as a subprocess, runs an agentic tool-use loop with a configurable AI provider, and streams transaction calldata back to the frontend.
 
 ## Architecture
 
 ```
-User Query
+Frontend (POST /chat)
     ↓
-AI Provider (analyze & tool selection)
+Client HTTP Server (Node.js)
+    ↓ per-request provider instantiation
+AI Provider (agentic loop)
+    ↓ tool calls
+MCP Client → Backend Server (stdio)
     ↓
-MCP Client (if tool_call in response)
-    ↓
-Backend Server (MCP tools)
-    ↓
-1Delta API (data/actions)
-    ↓
-Tool Result
-    ↓
-AI Provider (continue conversation)
-    ↓
-Final Response
+1Delta API
 ```
 
-## How It Works
+## HTTP API
 
-### 1. Initialization
+### `GET /providers`
 
-The client:
-1. Reads `AI_PROVIDER` and the corresponding API key from env
-2. Spawns the backend MCP server as a subprocess
-3. Creates MCP transport and connects
-4. Retrieves available tools from the server
+Returns the list of supported AI providers.
 
-### 2. Tool Definitions
-
-Tools are fetched dynamically from the MCP server:
-- Tool names, descriptions, input schemas, required vs optional parameters
-
-### 3. Agentic Loop
-
-```
-while AI wants to use tools:
-  1. AI analyzes query and available tools
-  2. AI decides which tool(s) to use
-  3. Client executes tool calls on backend
-  4. Results sent back to AI
-  5. AI formulates response or requests more tools
+```json
+{ "providers": ["anthropic", "openai", "google", "groq", "mistral", "deepseek"] }
 ```
 
-### 4. Response
+### `POST /chat`
 
-When the AI stops requesting tools, extract and return the final text response.
+```json
+{
+  "query": "What are the best USDC deposit rates on Arbitrum?",
+  "userAddress": "0xabc...",
+  "provider": "openai"
+}
+```
 
-## Usage
+- `query` — required
+- `userAddress` — optional; injected into the system context so the AI can query positions automatically
+- `provider` — optional; selects which AI provider to use for this request (defaults to `anthropic`). Provider selection is **stateless** — each request can use a different provider independently.
 
-### Setup
+**Response:**
+```json
+{
+  "response": "The top USDC markets on Arbitrum are...",
+  "transactions": [
+    { "description": "approve", "to": "0x...", "data": "0x...", "value": "0x0", "chainId": 42161 },
+    { "description": "deposit", "to": "0x...", "data": "0x...", "value": "0x0", "chainId": 42161 }
+  ]
+}
+```
+
+`transactions` is only present when the AI called an action tool. The `chainId` is extracted from the `marketUid` and used by the frontend to trigger a wallet chain switch before signing.
+
+## AI Providers
+
+| `provider` value | Required env var | Notes |
+|---|---|---|
+| `anthropic` | `ANTHROPIC_API_KEY` | Default. Includes exponential-backoff retry on 429s. |
+| `openai` | `OPENAI_API_KEY` | Uses `gpt-5-nano`. |
+| `google` | `GOOGLE_API_KEY` | Uses `gemini-2.5-flash-lite`. |
+| `groq` | `GROQ_API_KEY` | Uses `llama-3.1-8b-instant`. Free tier at console.groq.com. |
+| `mistral` | `MISTRAL_API_KEY` | Uses `mistral-small-latest`. Free tier at console.mistral.ai. |
+| `deepseek` | `DEEPSEEK_API_KEY` | Uses `deepseek-chat`. |
+
+All providers share the same system prompt (defined in `src/providers/types.ts`) which enforces liquidity-aware market recommendations.
+
+## Setup
 
 ```bash
-cp .env.example .env   # fill in AI_PROVIDER + API key
-pnpm dev
+cp .env.example .env   # fill in at least one API key
+pnpm build
+pnpm start             # listens on PORT (default 3001)
 ```
 
-### Supported Providers
-
-| `AI_PROVIDER`  | Required env var       | Notes                                    |
-|----------------|------------------------|------------------------------------------|
-| `anthropic`    | `ANTHROPIC_API_KEY`    | Default                                  |
-| `google`       | `GOOGLE_API_KEY`       |                                          |
-| `groq`         | `GROQ_API_KEY`         | Free tier at console.groq.com            |
-| `mistral`      | `MISTRAL_API_KEY`      | Free tier at console.mistral.ai          |
-| `deepseek`     | `DEEPSEEK_API_KEY`     | platform.deepseek.com                    |
-
-See [`.env.example`](.env.example) for all variables including optional overrides.
+```bash
+pnpm dev   # ts-node watch mode
+```
 
 ## Tool Execution Flow
 
@@ -88,51 +86,12 @@ See [`.env.example`](.env.example) for all variables including optional override
 4. **Result Collection:** Response collected for AI
 5. **Continuation:** AI decides next action
 
-### Example Queries
-
-```
-"What are the top lending markets on Ethereum with the highest deposit rates?"
-"Show me the lending positions for wallet 0xbadA9c382... on Ethereum"
-"What chains are supported by the lending API?"
-```
-
-## Development
-
-### Extending the Agentic Loop
-
-Current loop is basic. For production, consider:
-- Conversation history persistence
-- Multi-turn conversations
-- Memory/context management
-- Error recovery strategies
-- Streaming responses
-
-### Adding Custom Queries
-
-```typescript
-await processQuery("Your custom query here");
-// AI will use available MCP tools to answer
-```
-
-## Error Handling
-
-The client handles:
-- Missing API key
-- Connection failures
-- Tool execution errors
-- API timeouts
-- Malformed responses
-
-## Next Steps
-
-1. **Streaming:** Implement streaming responses
-2. **Memory:** Add conversation history database
-3. **Validation:** Validate tool inputs before execution
-4. **Retry Logic:** Add exponential backoff for failed calls
-5. **Monitoring:** Add performance metrics and logging
-
 ## References
 
-- [Anthropic Claude API](https://docs.anthropic.com)
 - [MCP Documentation](https://modelcontextprotocol.io)
+- [Anthropic Claude API](https://docs.anthropic.com)
+- [OpenAI API](https://platform.openai.com/docs)
+- [Google Gemini API](https://ai.google.dev/docs)
+- [Groq API](https://console.groq.com/docs)
+- [Mistral API](https://docs.mistral.ai)
 - [DeepSeek API](https://platform.deepseek.com/docs)
