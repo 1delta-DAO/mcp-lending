@@ -1,6 +1,6 @@
 # MCP Lending Agent
 
-A complete Model Context Protocol (MCP) implementation for AI-powered interaction with a lending platform API. This monorepo contains an MCP server, Claude AI client, and minimal chat frontend.
+A complete Model Context Protocol (MCP) implementation for AI-powered interaction with a lending platform API. This monorepo contains an MCP server, a multi-provider AI client, and a minimal chat frontend.
 
 ## Architecture Overview
 
@@ -43,22 +43,21 @@ A TypeScript MCP server that exposes the 1Delta lending API through MCP tools. T
 8. `get_supported_chains` - List supported blockchain networks
 9. `get_lender_ids` - List supported lending protocols
 
-### Client (MCP Client + Claude)
+### Client (MCP Client + AI Provider)
 
 **Location:** `packages/client`
 
 A TypeScript application that:
 - Connects to the MCP backend server
-- Integrates with Anthropic's Claude API
+- Integrates with a configurable AI provider (Anthropic, Google, Groq, Mistral, DeepSeek, AgentRouter)
 - Implements an agentic loop for tool use
-- Demonstrates end-to-end MCP + Claude integration
 
 **Architecture:**
 1. Initializes MCP client connection to the backend server
 2. Retrieves available tools from MCP server
-3. Sends user queries to Claude with tool definitions
+3. Sends user queries to the AI provider with tool definitions
 4. Executes tool calls and collects results
-5. Continues conversation until Claude provides final response
+5. Continues conversation until the AI provides a final response
 
 ### Frontend (Chat UI)
 
