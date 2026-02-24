@@ -1,4 +1,3 @@
-import { AgentRouterProvider } from "./agentrouter.js";
 import { AnthropicProvider } from "./anthropic.js";
 import { DeepSeekProvider } from "./deepseek.js";
 import { GoogleProvider } from "./google.js";
