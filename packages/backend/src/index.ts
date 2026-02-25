@@ -5,6 +5,8 @@ import axios from "axios";
 
 const API_BASE_URL = "https://portal.1delta.io/v1";
 
+const ONEDELTA_API_KEY = process.env.ONEDELTA_API_KEY;
+
 async function makeApiRequest(endpoint: string, params: Record<string, unknown> = {}) {
   const url = new URL(`${API_BASE_URL}${endpoint}`);
   Object.entries(params).forEach(([key, value]) => {
@@ -12,8 +14,10 @@ async function makeApiRequest(endpoint: string, params: Record<string, unknown> 
       url.searchParams.append(key, String(value));
     }
   });
+  const headers: Record<string, string> = {};
+  if (ONEDELTA_API_KEY) headers['x-api-key'] = ONEDELTA_API_KEY;
   try {
-    const response = await axios.get(url.toString());
+    const response = await axios.get(url.toString(), { headers });
     return response.data;
   } catch (error) {
     if (axios.isAxiosError(error)) {
