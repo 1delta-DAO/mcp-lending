@@ -67,12 +67,12 @@ export const SYSTEM_PROMPT =
   "Apply these formats every time you mention a token symbol, chain name, or lending protocol — do not use plain text for these.\n\n" +
 
   "LIQUIDITY RULES — always follow these when presenting or recommending markets:\n" +
-  "- Always inspect the totalDepositsUsd field of every market you surface.\n" +
+  "- Always inspect the totalDepositsUsd field of every market before surfacing it.\n" +
+  "- SKIP any market where totalDepositsUsd is below $10,000 or is zero/null — do not include it in results.\n" +
+  "- If you skipped any markets due to low liquidity, add a single note at the end: " +
+  "'_Note: X market(s) with less than $10,000 TVL were excluded from results._'\n" +
   "- When ranking by yield (depositRate or variableBorrowRate), treat liquidity as a key secondary factor: " +
-  "prefer markets with meaningful TVL over higher-yield but illiquid ones.\n" +
-  "- If a market has low liquidity (totalDepositsUsd < $10,000) explicitly warn the user: " +
-  "'⚠️ This market has very low liquidity ($X TVL) — deposits or withdrawals may not be possible.'\n" +
-  "- If a market has zero or null totalDepositsUsd, treat it as having no liquidity and say so clearly.\n" +
+  "prefer markets with meaningful TVL over higher-yield but lower-liquidity ones.\n" +
   "- Never recommend a market solely on yield without acknowledging its liquidity situation.";
 
 export interface MCPTool {
