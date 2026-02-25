@@ -233,14 +233,45 @@ export default function ChatContainer() {
         {/* Messages Container */}
         <div className={`flex-1 overflow-y-auto themed-scrollbar ${t.pageBg} ${messages.length === 0 ? 'flex items-center justify-center' : 'p-6 space-y-4'}`}>
           {messages.length === 0 ? (
-            <div className={`text-center ${t.textMuted}`}>
-              <p className="text-lg font-medium">Welcome to Lending Agent</p>
-              <p className="text-sm mt-2">Start by asking about lending markets, positions, or actions</p>
-              {!address && (
-                <p className="text-xs mt-3 text-blue-600 dark:text-blue-400">
-                  Connect your wallet to query your positions automatically
+            <div className="flex flex-col items-center gap-6 px-4 max-w-lg w-full">
+              {/* Welcome header */}
+              <div className="text-center">
+                <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-600 mb-4 mx-auto shadow-lg">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+                <h2 className={`text-xl font-semibold ${t.textPrimary}`}>How can I help you today?</h2>
+                <p className={`text-sm mt-1.5 ${t.textSecondary}`}>
+                  Ask me about lending markets, rates, positions, or execute DeFi actions.
                 </p>
-              )}
+                {!address && (
+                  <p className="text-xs mt-2 text-blue-600 dark:text-blue-400">
+                    Connect your wallet to query your positions automatically.
+                  </p>
+                )}
+              </div>
+
+              {/* Suggestion chips */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
+                {[
+                  { icon: '📈', text: 'Show me the market with the best yield on Arbitrum' },
+                  { icon: '💼', text: 'Show me my positions' },
+                  { icon: '💰', text: 'What are the best USDC lending rates right now?' },
+                  { icon: '🔍', text: 'Compare borrowing rates across all chains' },
+                  { icon: '⚡', text: 'What is the highest APY for ETH collateral?' },
+                  { icon: '📊', text: 'Show me the top 5 markets by total supply' },
+                ].map(({ icon, text }) => (
+                  <button
+                    key={text}
+                    onClick={() => setInput(text)}
+                    className={`flex items-start gap-2.5 text-left px-3.5 py-2.5 rounded-xl border ${t.borderSm} ${t.cardBg} ${t.textSecondary} ${t.hoverCard} transition text-sm`}
+                  >
+                    <span className="text-base leading-snug flex-shrink-0">{icon}</span>
+                    <span className="leading-snug">{text}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           ) : (
             messages.map(message => (
