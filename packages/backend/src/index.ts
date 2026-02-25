@@ -66,12 +66,12 @@ function slimPools(raw: unknown): unknown {
 server.registerTool(
   "find_market",
   {
-    description: "Find a lending market's marketUid by token/protocol. Use this before deposit/withdraw/borrow/repay.",
+    description: "Find a lending market's marketUid by token/protocol. Use this before deposit/withdraw/borrow/repay. Requires exact chainId and lender values — see get_supported_chains / get_lender_ids if unsure.",
     inputSchema: {
-      chainId:      z.string().describe("Chain ID ('1'=Ethereum, '42161'=Arbitrum)"),
+      chainId:      z.string().describe("Numeric chain ID as string. Common values: '1'=Ethereum, '56'=BNB, '137'=Polygon, '10'=Optimism, '42161'=Arbitrum, '43114'=Avalanche, '8453'=Base, '5000'=Mantle, '534352'=Scroll, '59144'=Linea. Call get_supported_chains if the chain is not listed here."),
       assetGroup:   z.string().optional().describe("Asset name e.g. 'USDC', 'WETH'"),
       tokenAddress: z.string().optional().describe("Token contract address (0x-)"),
-      lender:       z.string().optional().describe("Protocol e.g. 'AAVE_V3'"),
+      lender:       z.string().optional().describe("Exact lender protocol ID e.g. 'AAVE_V3', 'LENDLE', 'COMPOUND_V3'. Call get_lender_ids to discover valid values."),
       count:        z.number().int().optional().describe("Max results (default 10)"),
     },
   },
@@ -94,8 +94,8 @@ server.registerTool(
   {
     description: "Browse lending markets with filters. For a specific marketUid use find_market instead.",
     inputSchema: {
-      chainId:   z.string().optional().describe("Chain ID"),
-      lender:    z.string().optional().describe("Protocol e.g. 'AAVE_V3'"),
+      chainId:   z.string().optional().describe("Numeric chain ID as string e.g. '1'=Ethereum, '42161'=Arbitrum, '5000'=Mantle. Call get_supported_chains for the full list."),
+      lender:    z.string().optional().describe("Exact lender protocol ID e.g. 'AAVE_V3', 'LENDLE'. Call get_lender_ids for the full list."),
       minYield:  z.number().optional().describe("Min deposit rate"),
       maxYield:  z.number().optional().describe("Max deposit rate"),
       minTvlUsd: z.number().optional().describe("Min TVL in USD"),
