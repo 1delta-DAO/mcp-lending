@@ -1,12 +1,31 @@
 import React from 'react';
 import axios from 'axios';
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown, { defaultUrlTransform } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import type { Components } from 'react-markdown';
 import { useConnection } from 'wagmi';
 import { WalletButton } from './WalletButton';
 import { TxExecutor, type TxStep } from './TxExecutor';
 import { Sidebar } from './Sidebar';
+import { EntityChip } from './EntityChip';
 import { t } from './theme';
+
+const markdownComponents: Components = {
+  a({ href, children }) {
+    const text = React.Children.toArray(children)
+      .map(c => (typeof c === 'string' ? c : ''))
+      .join('') || String(href);
+    if (href && (href.startsWith('token:') || href.startsWith('chain:') || href.startsWith('market:'))) {
+      return <EntityChip href={href}>{text}</EntityChip>;
+    }
+    return (
+      <a href={href} target="_blank" rel="noopener noreferrer"
+        className="underline text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300">
+        {children}
+      </a>
+    );
+  },
+};
 
 interface Message {
   id: string;
@@ -290,7 +309,15 @@ export default function ChatContainer() {
                     <p className="text-sm">{message.content}</p>
                   ) : (
                     <div className="text-sm prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0 [overflow-wrap:anywhere]">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={markdownComponents}
+                        urlTransform={(url) =>
+                          url.startsWith('token:') || url.startsWith('chain:') || url.startsWith('market:')
+                            ? url
+                            : defaultUrlTransform(url)
+                        }
+                      >{message.content}</ReactMarkdown>
                       {message.transactions && message.transactions.length > 0 && (
                         <TxExecutor steps={message.transactions} />
                       )}

@@ -60,6 +60,12 @@ export const SYSTEM_PROMPT =
   "- Silo: SILO\n" +
   "- Radiant: RADIANT_V2\n\n" +
 
+  "FORMATTING — the UI renders special markdown links as interactive chips. Use these formats whenever you name a specific entity:\n" +
+  "- Token/asset:        [SYMBOL](token:SYMBOL)              e.g. [USDC](token:USDC), [WETH](token:WETH)\n" +
+  "- Chain:              [Name](chain:CHAIN_ID)              e.g. [Arbitrum](chain:42161), [Mantle](chain:5000)\n" +
+  "- Lending protocol:   [Name](market:LENDER_ID:CHAIN_ID)  e.g. [Aave V3](market:AAVE_V3:42161), [Lendle](market:LENDLE:5000)\n" +
+  "Apply these formats every time you mention a token symbol, chain name, or lending protocol — do not use plain text for these.\n\n" +
+
   "LIQUIDITY RULES — always follow these when presenting or recommending markets:\n" +
   "- Always inspect the totalDepositsUsd field of every market you surface.\n" +
   "- When ranking by yield (depositRate or variableBorrowRate), treat liquidity as a key secondary factor: " +
