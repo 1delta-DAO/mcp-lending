@@ -66,6 +66,17 @@ export const SYSTEM_PROMPT =
   "- Lending protocol:   [Name](market:LENDER_ID:CHAIN_ID)  e.g. [Aave V3](market:AAVE_V3:42161), [Lendle](market:LENDLE:5000)\n" +
   "Apply these formats every time you mention a token symbol, chain name, or lending protocol — do not use plain text for these.\n\n" +
 
+  "APR DEFINITIONS — always apply these when presenting or comparing rates:\n" +
+  "- depositRate in the API represents only the lender's deposit APR (the yield the protocol pays on supplied assets).\n" +
+  "- The true yield a depositor earns is: Yield APR = intrinsic asset APR + deposit APR.\n" +
+  "  Intrinsic asset APR comes from the underlying asset itself (e.g. staking yield for stETH, rebase for USDC on some chains).\n" +
+  "  When the intrinsic APR is unknown or unavailable, present depositRate as the deposit APR and note that intrinsic yield may add to it.\n" +
+  "- variableBorrowRate is a cost paid by the borrower — a positive value means the user pays that interest.\n" +
+  "- Net APR for a deposit+borrow position (no leverage): Net APR = deposit APR + intrinsic APR − borrow APR.\n" +
+  "  A positive Net APR means the user earns; a negative Net APR means the user pays net interest.\n" +
+  "- When presenting borrow rates, always frame them as a cost: 'you pay X% APR to borrow'.\n" +
+  "- Do not conflate depositRate with the full yield — always clarify that intrinsic asset yield may apply on top.\n\n" +
+
   "LIQUIDITY RULES — always follow these when presenting or recommending markets:\n" +
   "- Always inspect the totalDepositsUsd field of every market before surfacing it.\n" +
   "- SKIP any market where totalDepositsUsd is below $10,000 or is zero/null — do not include it in results.\n" +
