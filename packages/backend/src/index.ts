@@ -44,23 +44,37 @@ const server = new McpServer({ name: "lending-mcp-server", version: "0.1.0" });
 
 // ── Data tools ──────────────────────────────────────────────────────────────
 
-// Returns a slim projection of pool objects — just the fields needed for routing.
-// Handles both `data[]` envelope and bare array responses.
-function slimPools(raw: unknown): unknown {
+// Returns slim pool projections filtered by TVL.
+// - minTvlUsd filters on totalDepositsUsd (default 10 000) — the total deposits in the market.
+// - availableLiquidityUsd = totalDepositsUsd × (1 − utilization) is included in each record as useful context.
+// Returns { markets, filteredCount } so the AI can report how many were excluded.
+function slimPools(
+  raw: unknown,
+  minTvlUsd = 10_000,
+): { markets: unknown[]; filteredCount: number } {
   const pools: Record<string, unknown>[] = Array.isArray(raw)
     ? raw
     : Array.isArray((raw as Record<string, unknown>)?.data)
       ? (raw as Record<string, unknown>).data as Record<string, unknown>[]
       : [];
 
-  return pools.map((m) => ({
-    marketUid:          m.marketUid,
-    symbol:             m.symbol ?? m.tokenSymbol ?? (m.underlying as Record<string, unknown>)?.symbol,
-    depositRate:        m.depositRate,
-    variableBorrowRate: m.variableBorrowRate,
-    totalDepositsUsd:   m.totalDepositsUsd,
-    utilization:        m.utilization,
-  }));
+  const all = pools.map((m) => {
+    const tvl = typeof m.totalDepositsUsd === 'number' ? m.totalDepositsUsd : 0;
+    const util = typeof m.utilization === 'number' ? m.utilization : 1;
+    const availableLiquidityUsd = Math.round(tvl * (1 - util) * 100) / 100;
+    return {
+      marketUid:             m.marketUid,
+      symbol:                m.symbol ?? m.tokenSymbol ?? (m.underlying as Record<string, unknown>)?.symbol,
+      depositRate:           m.depositRate,
+      variableBorrowRate:    m.variableBorrowRate,
+      totalDepositsUsd:      tvl,
+      availableLiquidityUsd,
+      utilization:           util,
+    };
+  });
+
+  const markets = all.filter((m) => m.totalDepositsUsd >= minTvlUsd);
+  return { markets, filteredCount: all.length - markets.length };
 }
 
 server.registerTool(
@@ -68,14 +82,15 @@ server.registerTool(
   {
     description: "Find a lending market's marketUid by token/protocol. Use this before deposit/withdraw/borrow/repay. Requires exact chainId and lender values — see get_supported_chains / get_lender_ids if unsure.",
     inputSchema: {
-      chainId:      z.string().describe("Numeric chain ID as string. Common values: '1'=Ethereum, '56'=BNB, '137'=Polygon, '10'=Optimism, '42161'=Arbitrum, '43114'=Avalanche, '8453'=Base, '5000'=Mantle, '534352'=Scroll, '59144'=Linea. Call get_supported_chains if the chain is not listed here."),
-      assetGroup:   z.string().optional().describe("Asset name e.g. 'USDC', 'WETH'"),
-      tokenAddress: z.string().optional().describe("Token contract address (0x-)"),
-      lender:       z.string().optional().describe("Exact lender protocol ID e.g. 'AAVE_V3', 'LENDLE', 'COMPOUND_V3'. Call get_lender_ids to discover valid values."),
-      count:        z.number().int().optional().describe("Max results (default 10)"),
+      chainId:          z.string().describe("Numeric chain ID as string. Common values: '1'=Ethereum, '56'=BNB, '137'=Polygon, '10'=Optimism, '42161'=Arbitrum, '43114'=Avalanche, '8453'=Base, '5000'=Mantle, '534352'=Scroll, '59144'=Linea. Call get_supported_chains if the chain is not listed here."),
+      assetGroup:       z.string().optional().describe("Asset name e.g. 'USDC', 'WETH'"),
+      tokenAddress:     z.string().optional().describe("Token contract address (0x-)"),
+      lender:           z.string().optional().describe("Exact lender protocol ID e.g. 'AAVE_V3', 'LENDLE', 'COMPOUND_V3'. Call get_lender_ids to discover valid values."),
+      count:            z.number().int().optional().describe("Max results (default 10)"),
+      minTvlUsd:        z.number().optional().describe("Minimum TVL (totalDepositsUsd) in USD. Default 10000. Lower only if the user explicitly asks for small/illiquid markets."),
     },
   },
-  async ({ chainId, assetGroup, tokenAddress, lender, count }) => {
+  async ({ chainId, assetGroup, tokenAddress, lender, count, minTvlUsd }) => {
     try {
       const raw = await makeApiRequest("/data/lending/pools", {
         chainId,
@@ -84,7 +99,8 @@ server.registerTool(
         lender,
         count: count ?? 10,
       });
-      return { content: [{ type: "text" as const, text: JSON.stringify(slimPools(raw)) }] };
+      const result = slimPools(raw, minTvlUsd ?? 10_000);
+      return { content: [{ type: "text" as const, text: JSON.stringify(result) }] };
     } catch (e) { return err(e); }
   }
 );
@@ -94,18 +110,21 @@ server.registerTool(
   {
     description: "Browse lending markets with filters. For a specific marketUid use find_market instead.",
     inputSchema: {
-      chainId:   z.string().optional().describe("Numeric chain ID as string e.g. '1'=Ethereum, '42161'=Arbitrum, '5000'=Mantle. Call get_supported_chains for the full list."),
-      lender:    z.string().optional().describe("Exact lender protocol ID e.g. 'AAVE_V3', 'LENDLE'. Call get_lender_ids for the full list."),
-      minYield:  z.number().optional().describe("Min deposit rate"),
-      maxYield:  z.number().optional().describe("Max deposit rate"),
-      minTvlUsd: z.number().optional().describe("Min TVL in USD"),
-      sortBy:    z.enum(["depositRate", "variableBorrowRate", "utilization", "totalDepositsUsd"]).optional().describe("Sort field"),
-      count:     z.number().int().optional().describe("Results (default 100)"),
+      chainId:         z.string().optional().describe("Numeric chain ID as string e.g. '1'=Ethereum, '42161'=Arbitrum, '5000'=Mantle. Call get_supported_chains for the full list."),
+      lender:          z.string().optional().describe("Exact lender protocol ID e.g. 'AAVE_V3', 'LENDLE'. Call get_lender_ids for the full list."),
+      minYield:        z.number().optional().describe("Min deposit rate"),
+      maxYield:        z.number().optional().describe("Max deposit rate"),
+      minTvlUsd:       z.number().optional().describe("Minimum TVL (totalDepositsUsd) in USD. Default 10000. Lower only if the user explicitly asks for small/illiquid markets."),
+      sortBy:          z.enum(["depositRate", "variableBorrowRate", "utilization", "totalDepositsUsd"]).optional().describe("Sort field"),
+      count:           z.number().int().optional().describe("Results (default 100)"),
     },
   },
-  async (args) => {
-    try { return ok(await makeApiRequest("/data/lending/pools", args)); }
-    catch (e) { return err(e); }
+  async ({ minTvlUsd, ...args }) => {
+    try {
+      const raw = await makeApiRequest("/data/lending/pools", { ...args, minTvlUsd });
+      const result = slimPools(raw, minTvlUsd ?? 10_000);
+      return ok(result);
+    } catch (e) { return err(e); }
   }
 );
 

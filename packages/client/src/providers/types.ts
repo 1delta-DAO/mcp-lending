@@ -77,14 +77,15 @@ export const SYSTEM_PROMPT =
   "- When presenting borrow rates, always frame them as a cost: 'you pay X% APR to borrow'.\n" +
   "- Do not conflate depositRate with the full yield — always clarify that intrinsic asset yield may apply on top.\n\n" +
 
-  "LIQUIDITY RULES — always follow these when presenting or recommending markets:\n" +
-  "- Always inspect the totalDepositsUsd field of every market before surfacing it.\n" +
-  "- SKIP any market where totalDepositsUsd is below $10,000 or is zero/null — do not include it in results.\n" +
-  "- If you skipped any markets due to low liquidity, add a single note at the end: " +
-  "'_Note: X market(s) with less than $10,000 TVL were excluded from results._'\n" +
-  "- When ranking by yield (depositRate or variableBorrowRate), treat liquidity as a key secondary factor: " +
-  "prefer markets with meaningful TVL over higher-yield but lower-liquidity ones.\n" +
-  "- Never recommend a market solely on yield without acknowledging its liquidity situation.";
+  "LIQUIDITY RULES:\n" +
+  "- TVL (totalDepositsUsd) is the total deposits in a market.\n" +
+  "- Available liquidity (availableLiquidityUsd) is what can actually be borrowed or withdrawn: availableLiquidityUsd = TVL × (1 − utilization). It is included in results for context.\n" +
+  "- Tools filter markets by TVL (default: $10,000 minimum via minTvlUsd). Markets below this threshold are excluded.\n" +
+  "- Each tool response includes a filteredCount field. If filteredCount > 0, append: " +
+  "'_Note: X market(s) with less than $Y TVL were excluded._'\n" +
+  "- If the user asks for all markets including small ones, pass minTvlUsd: 0 to the tool.\n" +
+  "- When ranking markets, prefer higher availableLiquidityUsd among similarly-yielding options.\n" +
+  "- Never recommend a market solely on yield without mentioning its available liquidity.";
 
 export interface MCPTool {
   name: string;
