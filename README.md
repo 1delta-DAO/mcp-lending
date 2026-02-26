@@ -18,7 +18,7 @@ packages/
 └── frontend/   # Chat UI — wallet, tx executor, provider selector
 ```
 
-See each package's README for details.
+See each package's README for details. Additional docs in [docs/](docs/).
 
 ## Setup
 
@@ -50,12 +50,11 @@ VITE_CLIENT_URL=http://localhost:3001
 ### Run
 
 ```bash
-# All packages in watch mode:
-pnpm dev
+# Start the backend (client + MCP server):
+pnpm start:backend   # http://localhost:3001
 
-# Or individually:
-cd packages/client && pnpm dev   # http://localhost:3001
-cd packages/frontend && pnpm dev # http://localhost:3000
+# Start the frontend (separate terminal):
+pnpm start:frontend  # http://localhost:3000
 ```
 
 The backend is spawned automatically as a subprocess of the client.
