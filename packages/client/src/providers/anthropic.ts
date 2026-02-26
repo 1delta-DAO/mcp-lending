@@ -60,7 +60,7 @@ export class AnthropicProvider implements AIProvider {
 
       for (const block of response.content) {
         if (block.type === "tool_use") {
-          console.log(`→ tool: ${block.name}`);
+          console.log(`→ tool: ${block.name} input: ${JSON.stringify(block.input)}`);
           const result = await callTool(block.name, block.input as Record<string, unknown>);
           toolResults.push({ type: "tool_result", tool_use_id: block.id, content: result });
         }

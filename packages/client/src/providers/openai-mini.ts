@@ -48,7 +48,7 @@ export class OpenAIMiniProvider implements AIProvider {
 
       for (const tc of toolCalls) {
         if (tc.type !== "function") continue;
-        console.log(`→ tool: ${tc.function.name}`);
+        console.log(`→ tool: ${tc.function.name} input: ${tc.function.arguments}`);
         const input = JSON.parse(tc.function.arguments) as Record<string, unknown>;
         const result = await callTool(tc.function.name, input);
         messages.push({ role: "tool", tool_call_id: tc.id, content: result });
