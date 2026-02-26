@@ -38,10 +38,17 @@ export class AnthropicProvider implements AIProvider {
     callTool: (name: string, input: Record<string, unknown>) => Promise<string>,
     history: HistoryMessage[] = [],
   ): Promise<string> {
-    const toolDefs: Anthropic.Tool[] = tools.map((t) => ({
+    // Cache the system prompt and tools — both are large and identical on every request.
+    // Anthropic charges 0.1× for cache reads vs 1× for cache writes.
+    const cachedSystem: Anthropic.TextBlockParam[] = [
+      { type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
+    ];
+    const toolDefs: Anthropic.Tool[] = tools.map((t, i) => ({
       name: t.name,
       description: t.description ?? "",
       input_schema: t.inputSchema as Anthropic.Tool["input_schema"],
+      // Mark the last tool to cache the entire tools block.
+      ...(i === tools.length - 1 && { cache_control: { type: "ephemeral" } }),
     }));
 
     const messages: Anthropic.MessageParam[] = [
@@ -53,7 +60,7 @@ export class AnthropicProvider implements AIProvider {
       this.client.messages.create({
         model: "claude-sonnet-4-6",
         max_tokens: 4096,
-        system: SYSTEM_PROMPT,
+        system: cachedSystem,
         tools: toolDefs,
         messages,
       })
@@ -77,7 +84,7 @@ export class AnthropicProvider implements AIProvider {
         this.client.messages.create({
           model: "claude-sonnet-4-6",
           max_tokens: 4096,
-          system: SYSTEM_PROMPT,
+          system: cachedSystem,
           tools: toolDefs,
           messages,
         })
