@@ -10,7 +10,10 @@ const ONEDELTA_API_KEY = process.env.ONEDELTA_API_KEY;
 async function makeApiRequest(endpoint: string, params: Record<string, unknown> = {}) {
   const url = new URL(`${API_BASE_URL}${endpoint}`);
   Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null) {
+    if (value === undefined || value === null) return;
+    if (Array.isArray(value)) {
+      value.forEach(v => url.searchParams.append(key, String(v)));
+    } else {
       url.searchParams.append(key, String(value));
     }
   });
@@ -182,7 +185,6 @@ server.registerTool(
       assetGroup: z.string().optional().describe("Asset group name e.g. 'ETH', 'USDC'. Note: WETH is stored as 'ETH'."),
       symbol:     z.string().optional().describe("Token symbol e.g. 'USDC'"),
       address:    z.string().optional().describe("Token contract address (0x-)"),
-      lender:     z.string().optional().describe("Filter to assets available on this lender"),
     },
   },
   async (args) => {
