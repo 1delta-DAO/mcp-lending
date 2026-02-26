@@ -86,7 +86,7 @@ server.registerTool(
     description: "Find a lending market's marketUid by token/protocol. Use this before deposit/withdraw/borrow/repay. Requires exact chainId and lender values — see get_supported_chains / get_lender_ids if unsure.",
     inputSchema: {
       chainId:          z.string().describe("Numeric chain ID as string. Common values: '1'=Ethereum, '56'=BNB, '137'=Polygon, '10'=Optimism, '42161'=Arbitrum, '43114'=Avalanche, '8453'=Base, '5000'=Mantle, '534352'=Scroll, '59144'=Linea. Call get_supported_chains if the chain is not listed here."),
-      assetGroup:       z.string().optional().describe("Asset name e.g. 'USDC', 'WETH'"),
+      assetGroup:       z.string().optional().describe("Asset name e.g. 'USDC', 'ETH'. Note: WETH is mapped to 'ETH' — always use 'ETH' when searching for WETH markets."),
       tokenAddress:     z.string().optional().describe("Token contract address (0x-)"),
       lender:           z.string().optional().describe("Exact lender protocol ID e.g. 'AAVE_V3', 'LENDLE', 'COMPOUND_V3'. Call get_lender_ids to discover valid values."),
       count:            z.number().int().optional().describe("Max results (default 10)"),
@@ -115,11 +115,12 @@ server.registerTool(
     inputSchema: {
       chainId:         z.string().describe("Numeric chain ID as string e.g. '1'=Ethereum, '42161'=Arbitrum, '5000'=Mantle. Call get_supported_chains for the full list."),
       lender:          z.string().optional().describe("Exact lender protocol ID e.g. 'AAVE_V3', 'LENDLE'. Call get_lender_ids for the full list."),
+      assetGroups:     z.string().optional().describe("Comma-separated asset names e.g. 'USDC', 'ETH'"),
       minYield:        z.number().optional().describe("Min deposit rate"),
       maxYield:        z.number().optional().describe("Max deposit rate"),
       minTvlUsd:       z.number().optional().describe("Minimum TVL (totalDepositsUsd) in USD. Default 10000. Lower only if the user explicitly asks for small/illiquid markets."),
       sortBy:          z.enum(["depositRate", "variableBorrowRate", "utilization", "totalDepositsUsd"]).optional().describe("Sort field"),
-      sortDir:       z.enum(["asc", "desc"]).optional().describe("Sort direction. Use 'desc' for highest yield first."),
+      sortDir:         z.enum(["asc", "desc"]).optional().describe("Sort direction. Use 'desc' for highest yield first."),
       count:           z.number().int().optional().describe("Results (default 100)"),
     },
   },
@@ -196,7 +197,7 @@ server.registerTool(
     description: "Build calldata to deposit into a lending pool.",
     inputSchema: {
       marketUid: z.string().describe("Market UID (lender:chainId:tokenAddress)"),
-      amount:    z.string().describe("Amount in wei"),
+      amount:    z.string().describe("Amount in the token's base units (no decimals). Convert the human-readable amount: multiply by 10^decimals. Common decimals: ETH/WETH/most ERC-20s=18, USDC/USDT=6, WBTC=8. E.g. 0.00026 WETH → '260000000000000', 0.5 USDC → '500000'."),
       operator:  z.string().describe("Wallet address"),
       receiver:  z.string().optional().describe("Receipt recipient (default: operator)"),
       mode:      z.enum(["direct", "proxy"]).optional().describe("direct=raw protocol, proxy=1delta"),
@@ -214,7 +215,7 @@ server.registerTool(
     description: "Build calldata to withdraw from a lending pool.",
     inputSchema: {
       marketUid: z.string().describe("Market UID (lender:chainId:tokenAddress)"),
-      amount:    z.string().describe("Amount in wei"),
+      amount:    z.string().describe("Amount in the token's base units (no decimals). Convert the human-readable amount: multiply by 10^decimals. Common decimals: ETH/WETH/most ERC-20s=18, USDC/USDT=6, WBTC=8. E.g. 0.00026 WETH → '260000000000000', 0.5 USDC → '500000'."),
       operator:  z.string().describe("Wallet address"),
       receiver:  z.string().optional().describe("Recipient address"),
       isAll:     z.boolean().optional().describe("Withdraw full balance"),
@@ -233,7 +234,7 @@ server.registerTool(
     description: "Build calldata to borrow from a lending pool.",
     inputSchema: {
       marketUid:   z.string().describe("Market UID (lender:chainId:tokenAddress)"),
-      amount:      z.string().describe("Amount in wei"),
+      amount:      z.string().describe("Amount in the token's base units (no decimals). Convert the human-readable amount: multiply by 10^decimals. Common decimals: ETH/WETH/most ERC-20s=18, USDC/USDT=6, WBTC=8. E.g. 0.00026 WETH → '260000000000000', 0.5 USDC → '500000'."),
       operator:    z.string().describe("Wallet address"),
       receiver:    z.string().optional().describe("Recipient address"),
       lendingMode: z.enum(["0", "1", "2"]).optional().describe("Rate mode: 0=none 1=stable 2=variable"),
@@ -252,7 +253,7 @@ server.registerTool(
     description: "Build calldata to repay borrowed assets.",
     inputSchema: {
       marketUid:   z.string().describe("Market UID (lender:chainId:tokenAddress)"),
-      amount:      z.string().describe("Amount in wei"),
+      amount:      z.string().describe("Amount in the token's base units (no decimals). Convert the human-readable amount: multiply by 10^decimals. Common decimals: ETH/WETH/most ERC-20s=18, USDC/USDT=6, WBTC=8. E.g. 0.00026 WETH → '260000000000000', 0.5 USDC → '500000'."),
       operator:    z.string().describe("Wallet address"),
       isAll:       z.boolean().optional().describe("Repay full balance"),
       lendingMode: z.enum(["0", "1", "2"]).optional().describe("Rate mode: 0=none 1=stable 2=variable"),
