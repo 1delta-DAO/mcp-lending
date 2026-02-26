@@ -55,29 +55,36 @@ function chainIdFromMarketUid(marketUid: unknown): number | undefined {
   return isNaN(id) ? undefined : id;
 }
 
-// Extract tx steps from the 1Delta response schema:
-// { actions: { permissions: [{to, data, value, info}], transactions: [{to, data, value}] } }
-function extractTxSteps(toolName: string, rawJson: string, input: Record<string, unknown>): TxStep[] {
+// Extract tx steps and quote from the 1Delta response schema:
+// { actions: { permissions: [{to, data, value, info}], transactions: [{to, data, value}] }, data: { simulation } }
+function extractAction(
+  toolName: string,
+  rawJson: string,
+  input: Record<string, unknown>,
+): { steps: TxStep[]; quote?: Record<string, unknown> } {
   try {
-    const body = JSON.parse(rawJson);
-    const actions = body?.actions ?? body;
+    const body = JSON.parse(rawJson) as Record<string, unknown>;
+    const actions = (body?.actions ?? body) as Record<string, unknown>;
     const baseDesc = toolName.replace("get_", "").replace("_calldata", "");
     const chainId = chainIdFromMarketUid(input.marketUid);
-    const steps: TxStep[] = [];
-    // permissions = ERC-20 approvals (must execute first)
-    for (const p of (actions?.permissions ?? [])) {
-      if (p?.to && p?.data) {
-        steps.push({ description: p.info ?? "approve", to: p.to, data: p.data, value: p.value ?? "0x0", chainId });
-      }
-    }
-    // transactions = main action calldata
-    for (const t of (actions?.transactions ?? [])) {
-      if (t?.to && t?.data) {
-        steps.push({ description: baseDesc, to: t.to, data: t.data, value: t.value ?? "0x0", chainId });
-      }
-    }
-    return steps;
-  } catch { return []; }
+
+    console.error("Extracted action body:", body);
+    const toStep = (item: Record<string, unknown>, desc: string): TxStep | null =>
+      item?.to && item?.data
+        ? { description: desc, to: item.to as string, data: item.data as string, value: (item.value as string) ?? "0x0", chainId }
+        : null;
+
+    const steps = [
+      ...((actions.permissions ?? []) as Record<string, unknown>[]).map(p => toStep(p, (p.info as string) ?? "approve")),
+      ...((actions.transactions ?? []) as Record<string, unknown>[]).map(t => toStep(t, baseDesc)),
+    ].filter((s): s is TxStep => s !== null);
+
+    const { actions: _a, success: _s, data, ...rest } = body;
+    const dataObj = data != null && typeof data === "object" && !Array.isArray(data) ? data as Record<string, unknown> : {};
+    const quoteSource = { ...dataObj, ...rest };
+    const quote = Object.keys(quoteSource).length > 0 ? quoteSource : undefined;
+    return { steps, quote };
+  } catch { return { steps: [] }; }
 }
 
 // Cap tool results to keep input token counts within rate limits.
@@ -158,12 +165,15 @@ async function main() {
         console.log(`\nQuery: ${query}${userAddress ? ` (wallet: ${userAddress})` : ""}${provider ? ` (provider: ${provider})` : ""}`);
         const { tools } = await mcpClient.listTools();
 
-        // Collect transaction calldata returned by action tools during this request.
+        // Collect transaction calldata and quote returned by action tools during this request.
         const collectedTxSteps: TxStep[] = [];
+        let collectedQuote: Record<string, unknown> | undefined;
         const trackingCallTool = async (name: string, input: Record<string, unknown>): Promise<string> => {
           const result = await callMCPTool(name, input);
           if (ACTION_TOOLS.has(name)) {
-            collectedTxSteps.push(...extractTxSteps(name, result, input));
+            const { steps, quote } = extractAction(name, result, input);
+            collectedTxSteps.push(...steps);
+            if (quote) collectedQuote = quote;
           }
           return result;
         };
@@ -177,6 +187,7 @@ async function main() {
         res.end(JSON.stringify({
           response,
           ...(collectedTxSteps.length > 0 && { transactions: collectedTxSteps }),
+          ...(collectedQuote && { quote: collectedQuote }),
         }));
       } catch (err) {
         console.error("Error processing query:", err);

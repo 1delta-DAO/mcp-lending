@@ -45,10 +45,98 @@ function StatusDot({ status }: { status: StepStatus }) {
   return <div className="w-4 h-4 rounded-full border-2 border-gray-300 dark:border-gray-600 flex-shrink-0" />;
 }
 
-export function TxExecutor({ steps }: { steps: TxStep[] }) {
+interface SimPre {
+  healthFactor?: number;
+  borrowCapacity?: number;
+}
+interface SimBalanceData {
+  collateral?: number;
+  debt?: number;
+  nav?: number;
+}
+interface SimAprData {
+  borrowApr?: number;
+  depositApr?: number;
+  apr?: number;
+}
+interface SimPost {
+  healthFactor?: number;
+  borrowCapacity?: number;
+  balanceData?: SimBalanceData;
+  aprData?: SimAprData;
+}
+interface SimulationData {
+  pre: SimPre;
+  post: SimPost;
+}
+
+function fHF(v: number | undefined): string {
+  if (v === undefined) return '—';
+  if (v > 100_000) return '∞';
+  return v < 1 ? v.toFixed(4) : v.toFixed(2);
+}
+function fUsd(v: number | undefined): string {
+  return v !== undefined ? `$${v.toFixed(2)}` : '—';
+}
+function fPct(v: number | undefined): string {
+  return v !== undefined ? `${v.toFixed(2)}%` : '—';
+}
+
+function SimulationPanel({ sim }: { sim: SimulationData }) {
+  const { pre, post } = sim;
+  const lowHF = post.healthFactor !== undefined && post.healthFactor < 1.5;
+
+  const rows: { label: string; before: string; after: string; danger?: boolean }[] = [
+    { label: 'Health factor',    before: fHF(pre.healthFactor),       after: fHF(post.healthFactor),                  danger: lowHF },
+    { label: 'Borrow capacity',  before: fUsd(pre.borrowCapacity),    after: fUsd(post.borrowCapacity) },
+    { label: 'Collateral',       before: '—',                         after: fUsd(post.balanceData?.collateral) },
+    { label: 'Total debt',       before: '—',                         after: fUsd(post.balanceData?.debt) },
+    { label: 'Borrow APR',       before: '—',                         after: fPct(post.aprData?.borrowApr) },
+    { label: 'Deposit APR',      before: '—',                         after: fPct(post.aprData?.depositApr) },
+  ];
+
+  return (
+    <div className="border-b border-blue-100 dark:border-blue-900">
+      {lowHF && (
+        <div className="px-3 py-1.5 bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-400 font-medium">
+          Warning: health factor below 1.5 after this action
+        </div>
+      )}
+      <table className="w-full">
+        <thead>
+          <tr className="bg-blue-50 dark:bg-blue-950">
+            <th className="px-3 py-1.5 text-left font-semibold text-blue-700 dark:text-blue-300">Simulation</th>
+            <th className="px-3 py-1.5 text-right font-medium text-gray-400 dark:text-gray-500">Before</th>
+            <th className="px-3 py-1.5 text-right font-semibold text-blue-700 dark:text-blue-300">After</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+          {rows.map(row => (
+            <tr key={row.label} className="bg-white dark:bg-gray-800">
+              <td className="px-3 py-1 text-gray-500 dark:text-gray-400">{row.label}</td>
+              <td className="px-3 py-1 text-right font-mono text-gray-400 dark:text-gray-500">{row.before}</td>
+              <td className={`px-3 py-1 text-right font-mono font-medium ${row.danger ? 'text-red-500' : 'text-gray-900 dark:text-gray-100'}`}>
+                {row.after}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function QuotePanel({ quote }: { quote: Record<string, unknown> }) {
+  const sim = quote.simulation as SimulationData | undefined;
+  if (sim?.pre && sim?.post) return <SimulationPanel sim={sim} />;
+  return null;
+}
+
+export function TxExecutor({ steps, quote }: { steps: TxStep[]; quote?: Record<string, unknown> }) {
   const [statuses, setStatuses] = React.useState<StepStatus[]>(steps.map(() => 'idle'));
   const [hashes, setHashes] = React.useState<(string | undefined)[]>(steps.map(() => undefined));
   const [errors, setErrors] = React.useState<(string | undefined)[]>(steps.map(() => undefined));
+  const [expanded, setExpanded] = React.useState<boolean[]>(steps.map(() => false));
   const [running, setRunning] = React.useState(false);
   const { sendTransactionAsync } = useSendTransaction();
   const { chainId: currentChainId } = useAccount();
@@ -91,6 +179,8 @@ export function TxExecutor({ steps }: { steps: TxStep[] }) {
         {steps.length} transaction{steps.length !== 1 ? 's' : ''} to execute
       </div>
 
+      {quote && <QuotePanel quote={quote} />}
+
       <div className="divide-y divide-gray-100 dark:divide-gray-800">
         {steps.map((step, i) => (
           <div key={i} className="flex items-start gap-2 px-3 py-2 bg-white dark:bg-gray-800">
@@ -98,8 +188,24 @@ export function TxExecutor({ steps }: { steps: TxStep[] }) {
               <StatusDot status={statuses[i]} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-medium text-gray-900 dark:text-gray-100 capitalize">{step.description}</p>
-              <p className="font-mono text-gray-400 truncate">{step.to}</p>
+              <div className="flex items-center gap-1">
+                <p className="font-medium text-gray-900 dark:text-gray-100 capitalize flex-1">{step.description}</p>
+                <button
+                  onClick={() => setExpanded(prev => prev.map((v, idx) => idx === i ? !v : v))}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition flex-shrink-0"
+                  title={expanded[i] ? 'Hide details' : 'Show details'}
+                >
+                  <svg className={`w-3.5 h-3.5 transition-transform ${expanded[i] ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </div>
+              {expanded[i] && (
+                <div className="mt-1 space-y-0.5">
+                  <p className="font-mono text-gray-400 truncate">{step.to}</p>
+                  <p className="font-mono text-gray-300 dark:text-gray-600 truncate">{step.data}</p>
+                </div>
+              )}
               {hashes[i] && (
                 <p className="font-mono text-green-600 dark:text-green-400 truncate">tx: {hashes[i]}</p>
               )}

@@ -33,6 +33,7 @@ interface Message {
   content: string;
   timestamp: Date;
   transactions?: TxStep[];
+  quote?: Record<string, unknown>;
 }
 
 export interface Chat {
@@ -157,7 +158,7 @@ export default function ChatContainer() {
     setIsLoading(true);
 
     try {
-      const { data } = await axios.post<{ response: string; transactions?: TxStep[] }>(
+      const { data } = await axios.post<{ response: string; transactions?: TxStep[]; quote?: Record<string, unknown> }>(
         `${clientUrl}/chat`,
         {
           query: input,
@@ -176,6 +177,7 @@ export default function ChatContainer() {
         content: data.response,
         timestamp: new Date(),
         transactions: data.transactions,
+        quote: data.quote,
       };
 
       setChats(prev => prev.map(chat =>
@@ -327,7 +329,7 @@ export default function ChatContainer() {
                         }
                       >{message.content}</ReactMarkdown>
                       {message.transactions && message.transactions.length > 0 && (
-                        <TxExecutor steps={message.transactions} />
+                        <TxExecutor steps={message.transactions} quote={message.quote} />
                       )}
                     </div>
                   )}
