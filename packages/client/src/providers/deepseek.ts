@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import type { AIProvider, MCPTool } from "./types.js";
+import type { AIProvider, HistoryMessage, MCPTool } from "./types.js";
 import { SYSTEM_PROMPT } from "./types.js";
 
 // DeepSeek models with tool calling support:
@@ -23,7 +23,8 @@ export class DeepSeekProvider implements AIProvider {
   async processQuery(
     userQuery: string,
     tools: MCPTool[],
-    callTool: (name: string, input: Record<string, unknown>) => Promise<string>
+    callTool: (name: string, input: Record<string, unknown>) => Promise<string>,
+    history: HistoryMessage[] = [],
   ): Promise<string> {
     const toolDefs: OpenAI.Chat.ChatCompletionTool[] = tools.map((t) => ({
       type: "function",
@@ -36,6 +37,7 @@ export class DeepSeekProvider implements AIProvider {
 
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
       { role: "system", content: SYSTEM_PROMPT },
+      ...history.map((h) => ({ role: h.role, content: h.content })),
       { role: "user", content: userQuery },
     ];
 

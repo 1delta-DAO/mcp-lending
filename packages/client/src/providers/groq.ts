@@ -1,5 +1,5 @@
 import Groq from "groq-sdk";
-import type { AIProvider, MCPTool } from "./types.js";
+import type { AIProvider, HistoryMessage, MCPTool } from "./types.js";
 import { SYSTEM_PROMPT } from "./types.js";
 
 // Models with tool calling support on Groq free tier:
@@ -23,7 +23,8 @@ export class GroqProvider implements AIProvider {
   async processQuery(
     userQuery: string,
     tools: MCPTool[],
-    callTool: (name: string, input: Record<string, unknown>) => Promise<string>
+    callTool: (name: string, input: Record<string, unknown>) => Promise<string>,
+    history: HistoryMessage[] = [],
   ): Promise<string> {
     const toolDefs: Groq.Chat.ChatCompletionTool[] = tools.map((t) => ({
       type: "function",
@@ -36,6 +37,7 @@ export class GroqProvider implements AIProvider {
 
     const messages: Groq.Chat.ChatCompletionMessageParam[] = [
       { role: "system", content: SYSTEM_PROMPT },
+      ...history.map((h) => ({ role: h.role, content: h.content })),
       { role: "user", content: userQuery },
     ];
 

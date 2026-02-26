@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import type { AIProvider, MCPTool } from "./types.js";
+import type { AIProvider, HistoryMessage, MCPTool } from "./types.js";
 import { SYSTEM_PROMPT } from "./types.js";
 
 const MODEL = "gemini-2.5-flash-lite";
@@ -42,7 +42,8 @@ export class GoogleProvider implements AIProvider {
   async processQuery(
     userQuery: string,
     tools: MCPTool[],
-    callTool: (name: string, input: Record<string, unknown>) => Promise<string>
+    callTool: (name: string, input: Record<string, unknown>) => Promise<string>,
+    history: HistoryMessage[] = [],
   ): Promise<string> {
     const functionDeclarations = tools.map((t) => ({
       name: t.name,
@@ -53,6 +54,10 @@ export class GoogleProvider implements AIProvider {
     const chat = this.ai.chats.create({
       model: MODEL,
       config: { systemInstruction: SYSTEM_PROMPT, tools: [{ functionDeclarations }] },
+      history: history.map((h) => ({
+        role: h.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: h.content }],
+      })),
     });
 
     let response = await chat.sendMessage({ message: userQuery });

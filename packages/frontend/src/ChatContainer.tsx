@@ -159,7 +159,15 @@ export default function ChatContainer() {
     try {
       const { data } = await axios.post<{ response: string; transactions?: TxStep[] }>(
         `${clientUrl}/chat`,
-        { query: input, userAddress: address, provider: selectedProvider }
+        {
+          query: input,
+          userAddress: address,
+          provider: selectedProvider,
+          history: messages.map((m) => ({
+            role: m.type === 'user' ? 'user' : 'assistant',
+            content: m.content,
+          })),
+        }
       );
 
       const agentMessage: Message = {

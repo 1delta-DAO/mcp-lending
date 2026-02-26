@@ -87,6 +87,11 @@ export const SYSTEM_PROMPT =
   "- When ranking markets, prefer higher availableLiquidityUsd among similarly-yielding options.\n" +
   "- Never recommend a market solely on yield without mentioning its available liquidity.";
 
+export interface HistoryMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 export interface MCPTool {
   name: string;
   description?: string;
@@ -97,6 +102,7 @@ export interface AIProvider {
   processQuery(
     userQuery: string,
     tools: MCPTool[],
-    callTool: (name: string, input: Record<string, unknown>) => Promise<string>
+    callTool: (name: string, input: Record<string, unknown>) => Promise<string>,
+    history?: HistoryMessage[],
   ): Promise<string>;
 }

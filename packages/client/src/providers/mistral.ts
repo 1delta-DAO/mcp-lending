@@ -5,7 +5,7 @@ import type {
   ToolMessage,
   UserMessage,
 } from "@mistralai/mistralai/models/components/index.js";
-import type { AIProvider, MCPTool } from "./types.js";
+import type { AIProvider, HistoryMessage, MCPTool } from "./types.js";
 import { SYSTEM_PROMPT } from "./types.js";
 
 // Free tier: ~1B tokens/month, generous rate limits
@@ -27,7 +27,8 @@ export class MistralProvider implements AIProvider {
   async processQuery(
     userQuery: string,
     tools: MCPTool[],
-    callTool: (name: string, input: Record<string, unknown>) => Promise<string>
+    callTool: (name: string, input: Record<string, unknown>) => Promise<string>,
+    history: HistoryMessage[] = [],
   ): Promise<string> {
     const toolDefs = tools.map((t) => ({
       type: "function" as const,
@@ -41,6 +42,7 @@ export class MistralProvider implements AIProvider {
 
     const messages: Messages = [
       { role: "system", content: SYSTEM_PROMPT },
+      ...history.map((h) => ({ role: h.role, content: h.content })),
       { role: "user", content: userQuery },
     ];
 

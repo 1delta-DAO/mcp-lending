@@ -3,6 +3,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { createServer } from "http";
 import type { IncomingMessage, ServerResponse } from "http";
 import { createProvider, PROVIDERS, PROVIDER_INFO } from "./providers/index.js";
+import type { HistoryMessage } from "./providers/types.js";
 
 const PORT = parseInt(process.env.PORT ?? "3001", 10);
 
@@ -135,10 +136,11 @@ async function main() {
     if (req.method === "POST" && req.url === "/chat") {
       try {
         const body = await readBody(req);
-        const { query, userAddress, provider } = JSON.parse(body) as {
+        const { query, userAddress, provider, history } = JSON.parse(body) as {
           query?: string;
           userAddress?: string;
           provider?: string;
+          history?: HistoryMessage[];
         };
 
         if (!query || typeof query !== "string") {
@@ -166,7 +168,7 @@ async function main() {
           return result;
         };
 
-        const response = await aiProvider.processQuery(fullQuery, tools, trackingCallTool);
+        const response = await aiProvider.processQuery(fullQuery, tools, trackingCallTool, history ?? []);
 
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({

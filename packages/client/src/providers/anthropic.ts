@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { AIProvider, MCPTool } from "./types.js";
+import type { AIProvider, HistoryMessage, MCPTool } from "./types.js";
 import { SYSTEM_PROMPT } from "./types.js";
 
 // Retry an API call on 429 rate-limit errors using exponential backoff.
@@ -35,7 +35,8 @@ export class AnthropicProvider implements AIProvider {
   async processQuery(
     userQuery: string,
     tools: MCPTool[],
-    callTool: (name: string, input: Record<string, unknown>) => Promise<string>
+    callTool: (name: string, input: Record<string, unknown>) => Promise<string>,
+    history: HistoryMessage[] = [],
   ): Promise<string> {
     const toolDefs: Anthropic.Tool[] = tools.map((t) => ({
       name: t.name,
@@ -43,7 +44,10 @@ export class AnthropicProvider implements AIProvider {
       input_schema: t.inputSchema as Anthropic.Tool["input_schema"],
     }));
 
-    const messages: Anthropic.MessageParam[] = [{ role: "user", content: userQuery }];
+    const messages: Anthropic.MessageParam[] = [
+      ...history.map((h) => ({ role: h.role, content: h.content })),
+      { role: "user", content: userQuery },
+    ];
 
     let response = await withRetry(() =>
       this.client.messages.create({
