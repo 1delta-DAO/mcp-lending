@@ -174,6 +174,24 @@ server.registerTool(
 );
 
 server.registerTool(
+  "get_token_info",
+  {
+    description: "Look up token metadata (address, decimals, symbol, name) by assetGroup, symbol, address, and/or chainId. One assetGroup can map to multiple tokens across chains. Add chainId to identify a specific token. Always call this before an action when the token's decimals are not known, so you can correctly convert human-readable amounts to base units.",
+    inputSchema: {
+      chainId:    z.string().optional().describe("Chain ID e.g. '42161'"),
+      assetGroup: z.string().optional().describe("Asset group name e.g. 'ETH', 'USDC'. Note: WETH is stored as 'ETH'."),
+      symbol:     z.string().optional().describe("Token symbol e.g. 'USDC'"),
+      address:    z.string().optional().describe("Token contract address (0x-)"),
+      lender:     z.string().optional().describe("Filter to assets available on this lender"),
+    },
+  },
+  async (args) => {
+    try { return ok(await makeApiRequest("/data/token/available", args)); }
+    catch (e) { return err(e); }
+  }
+);
+
+server.registerTool(
   "get_token_balances",
   {
     description: "Get token balances for a wallet on a chain.",
