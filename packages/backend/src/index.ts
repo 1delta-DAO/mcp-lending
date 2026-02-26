@@ -192,6 +192,34 @@ server.registerTool(
 );
 
 server.registerTool(
+  "get_token_price",
+  {
+    description: "Get current USD prices for one or more tokens by asset group key. Use this when the user specifies an amount in USD — get the price, divide USD amount by price to get the token amount, then convert to base units using decimals from get_token_info.",
+    inputSchema: {
+      assets: z.array(z.string()).describe("Asset group keys to look up e.g. ['ETH', 'USDC', 'WBTC']. Note: WETH uses the key 'ETH'."),
+    },
+  },
+  async ({ assets }) => {
+    try {
+      const raw = await makeApiRequest("/data/prices/latest", { assets });
+      const items = (raw as Record<string, unknown>)?.data
+        ? ((raw as Record<string, unknown>).data as Record<string, unknown>)?.items
+        : raw;
+      // Filter to only the requested keys to keep response small
+      const filtered: Record<string, unknown> = {};
+      if (items && typeof items === "object") {
+        for (const key of assets) {
+          if ((items as Record<string, unknown>)[key] !== undefined) {
+            filtered[key] = (items as Record<string, unknown>)[key];
+          }
+        }
+      }
+      return ok({ prices: Object.keys(filtered).length > 0 ? filtered : items });
+    } catch (e) { return err(e); }
+  }
+);
+
+server.registerTool(
   "get_token_balances",
   {
     description: "Get token balances for a wallet on a chain.",
