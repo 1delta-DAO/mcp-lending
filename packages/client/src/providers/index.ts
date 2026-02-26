@@ -21,7 +21,7 @@ export const PROVIDER_INFO: Record<ProviderName, ProviderInfo> = {
 };
 
 export function createProvider(name?: string): AIProvider {
-  const provider = (name ?? "anthropic").toLowerCase();
+  const provider = (name ?? "openai-mini").toLowerCase();
   console.log(`Using AI provider: ${provider}`);
 
   switch (provider) {

@@ -86,7 +86,7 @@ export default function ChatContainer() {
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
   const [selectedProvider, setSelectedProvider] = React.useState<string>(
-    () => localStorage.getItem('selectedProvider') ?? 'anthropic'
+    () => localStorage.getItem('selectedProvider') ?? 'openai-mini'
   );
   const [availableProviders, setAvailableProviders] = React.useState<{ id: string; company: string; model: string }[]>([]);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
