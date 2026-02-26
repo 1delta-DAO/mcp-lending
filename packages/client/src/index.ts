@@ -140,6 +140,21 @@ async function main() {
       return;
     }
 
+    if (req.method === "GET" && req.url?.startsWith("/token-info")) {
+      try {
+        const qs = new URL(req.url, "http://localhost").searchParams;
+        const params: Record<string, unknown> = {};
+        for (const [k, v] of qs.entries()) params[k] = v;
+        const result = await callMCPTool("get_token_info", params);
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(result);
+      } catch (e) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: String(e) }));
+      }
+      return;
+    }
+
     if (req.method === "POST" && req.url === "/chat") {
       try {
         const body = await readBody(req);

@@ -1,4 +1,14 @@
 import React from 'react';
+import axios from 'axios';
+
+const CLIENT_URL = (import.meta as { env: Record<string, string> }).env.VITE_CLIENT_URL ?? 'http://localhost:3001';
+
+interface TokenData {
+  symbol: string;
+  name: string;
+  decimals: number;
+  chainCount: number;
+}
 
 // ── Static lookup tables ──────────────────────────────────────────────────────
 
@@ -106,6 +116,9 @@ export function EntityChip({ href, children }: EntityChipProps) {
   const [open, setOpen] = React.useState(false);
   const containerRef = React.useRef<HTMLSpanElement>(null);
   const entity = parseHref(href);
+  const [tokenData, setTokenData] = React.useState<TokenData | null>(null);
+  const [tokenLoading, setTokenLoading] = React.useState(false);
+  const fetchedSymbolRef = React.useRef<string | null>(null);
 
   // Close popup on click outside
   React.useEffect(() => {
@@ -118,6 +131,33 @@ export function EntityChip({ href, children }: EntityChipProps) {
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
   }, [open]);
+
+  // Fetch token info when a token popup opens (only once per symbol)
+  React.useEffect(() => {
+    if (!open || entity?.kind !== 'token') return;
+    if (fetchedSymbolRef.current === entity.symbol) return;
+    fetchedSymbolRef.current = entity.symbol;
+    setTokenLoading(true);
+    axios.get<Record<string, unknown>>(`${CLIENT_URL}/token-info`, { params: { symbol: entity.symbol } })
+      .then(({ data }) => {
+        console.log("Token info response", data);
+        const parsed = typeof data === 'string' ? JSON.parse(data) as Record<string, unknown> : data;
+        const items = (parsed?.data as Record<string, unknown>)?.items as Record<string, unknown>[] | undefined
+          ?? (parsed?.items as Record<string, unknown>[] | undefined);
+        if (items && items.length > 0) {
+          const first = items[0];
+          setTokenData({
+            symbol:     String(first.symbol ?? entity.symbol),
+            name:       String(first.name ?? ''),
+            decimals:   Number(first.decimals ?? 18),
+            chainCount: items.length,
+          });
+        }
+      })
+      .catch(() => {})
+      .finally(() => setTokenLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, entity?.kind === 'token' ? entity.symbol : null]);
 
   // Fall back to a plain link for normal URLs
   if (!entity) {
@@ -150,7 +190,18 @@ export function EntityChip({ href, children }: EntityChipProps) {
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v8M9 10h4.5a1.5 1.5 0 010 3H9" />
       </svg>
     );
-    popupRows = <PopupRow label="Symbol" value={entity.symbol} />;
+    popupRows = tokenLoading ? (
+      <span className="text-xs text-gray-400 dark:text-gray-500">Loading…</span>
+    ) : tokenData ? (
+      <>
+        <PopupRow label="Symbol"   value={tokenData.symbol}                          />
+        <PopupRow label="Name"     value={tokenData.name}                            />
+        <PopupRow label="Decimals" value={String(tokenData.decimals)}                />
+        <PopupRow label="Chains"   value={`Available on ${tokenData.chainCount} chain${tokenData.chainCount !== 1 ? 's' : ''}`} />
+      </>
+    ) : (
+      <PopupRow label="Symbol" value={entity.symbol} />
+    );
   } else if (entity.kind === 'chain') {
     const info = CHAIN_INFO[entity.chainId];
     chipCls = 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-700 hover:bg-amber-200 dark:hover:bg-amber-800/60';
