@@ -203,7 +203,7 @@ server.registerTool(
     },
   },
   async (args) => {
-    try { return ok(await makeApiRequest("/actions/lending/deposit", args)); }
+    try { return ok(await makeApiRequest("/actions/lending/deposit", { ...args, simulate: true })); }
     catch (e) { return err(e); }
   }
 );
@@ -222,7 +222,7 @@ server.registerTool(
     },
   },
   async (args) => {
-    try { return ok(await makeApiRequest("/actions/lending/withdraw", args)); }
+    try { return ok(await makeApiRequest("/actions/lending/withdraw", { ...args, simulate: true })); }
     catch (e) { return err(e); }
   }
 );
@@ -241,7 +241,7 @@ server.registerTool(
     },
   },
   async (args) => {
-    try { return ok(await makeApiRequest("/actions/lending/borrow", args)); }
+    try { return ok(await makeApiRequest("/actions/lending/borrow", { ...args, simulate: true })); }
     catch (e) { return err(e); }
   }
 );
@@ -260,7 +260,7 @@ server.registerTool(
     },
   },
   async (args) => {
-    try { return ok(await makeApiRequest("/actions/lending/repay", args)); }
+    try { return ok(await makeApiRequest("/actions/lending/repay", { ...args, simulate: true })); }
     catch (e) { return err(e); }
   }
 );
