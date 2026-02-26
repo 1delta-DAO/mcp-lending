@@ -52,19 +52,22 @@ function slimPools(
   raw: unknown,
   minTvlUsd = 10_000,
 ): { markets: unknown[]; filteredCount: number } {
+  const rawData = (raw as Record<string, unknown>)?.data;
   const pools: Record<string, unknown>[] = Array.isArray(raw)
     ? raw
-    : Array.isArray((raw as Record<string, unknown>)?.data)
-      ? (raw as Record<string, unknown>).data as Record<string, unknown>[]
-      : [];
+    : Array.isArray((rawData as Record<string, unknown>)?.items)
+      ? (rawData as Record<string, unknown>).items as Record<string, unknown>[]
+      : Array.isArray(rawData)
+        ? rawData as Record<string, unknown>[]
+        : [];
 
   const all = pools.map((m) => {
-    const tvl = typeof m.totalDepositsUsd === 'number' ? m.totalDepositsUsd : 0;
-    const util = typeof m.utilization === 'number' ? m.utilization : 1;
+    const tvl = parseFloat(m.totalDepositsUsd as string) || 0;
+    const util = parseFloat(m.utilization as string) || 0;
     const availableLiquidityUsd = Math.round(tvl * (1 - util) * 100) / 100;
     return {
       marketUid:             m.marketUid,
-      symbol:                m.symbol ?? m.tokenSymbol ?? (m.underlying as Record<string, unknown>)?.symbol,
+      symbol:                m.assetGroup ?? m.symbol ?? m.tokenSymbol ?? (m.underlying as Record<string, unknown>)?.symbol,
       depositRate:           m.depositRate,
       variableBorrowRate:    m.variableBorrowRate,
       totalDepositsUsd:      tvl,
@@ -108,20 +111,21 @@ server.registerTool(
 server.registerTool(
   "get_lending_markets",
   {
-    description: "Browse lending markets with filters. For a specific marketUid use find_market instead.",
+    description: "Browse lending markets with filters. For a specific marketUid use find_market instead. To find the best yield, use sortBy='depositRate' and sortOrder='desc'.",
     inputSchema: {
-      chainId:         z.string().optional().describe("Numeric chain ID as string e.g. '1'=Ethereum, '42161'=Arbitrum, '5000'=Mantle. Call get_supported_chains for the full list."),
+      chainId:         z.string().describe("Numeric chain ID as string e.g. '1'=Ethereum, '42161'=Arbitrum, '5000'=Mantle. Call get_supported_chains for the full list."),
       lender:          z.string().optional().describe("Exact lender protocol ID e.g. 'AAVE_V3', 'LENDLE'. Call get_lender_ids for the full list."),
       minYield:        z.number().optional().describe("Min deposit rate"),
       maxYield:        z.number().optional().describe("Max deposit rate"),
       minTvlUsd:       z.number().optional().describe("Minimum TVL (totalDepositsUsd) in USD. Default 10000. Lower only if the user explicitly asks for small/illiquid markets."),
       sortBy:          z.enum(["depositRate", "variableBorrowRate", "utilization", "totalDepositsUsd"]).optional().describe("Sort field"),
+      sortDir:       z.enum(["asc", "desc"]).optional().describe("Sort direction. Use 'desc' for highest yield first."),
       count:           z.number().int().optional().describe("Results (default 100)"),
     },
   },
   async ({ minTvlUsd, ...args }) => {
     try {
-      const raw = await makeApiRequest("/data/lending/pools", { ...args, minTvlUsd });
+      const raw = await makeApiRequest("/data/lending/pools", args);
       const result = slimPools(raw, minTvlUsd ?? 10_000);
       return ok(result);
     } catch (e) { return err(e); }
