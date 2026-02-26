@@ -168,7 +168,10 @@ async function main() {
           return result;
         };
 
-        const response = await aiProvider.processQuery(fullQuery, tools, trackingCallTool, history ?? []);
+        // Keep only the most recent messages to limit token usage.
+        const MAX_HISTORY = 10;
+        const trimmedHistory = (history ?? []).slice(-MAX_HISTORY);
+        const response = await aiProvider.processQuery(fullQuery, tools, trackingCallTool, trimmedHistory);
 
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({
