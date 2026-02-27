@@ -85,13 +85,14 @@ export const SYSTEM_PROMPT =
 
   "LIQUIDITY RULES:\n" +
   "- TVL (totalDepositsUsd) is the total deposits in a market.\n" +
-  "- Available liquidity (availableLiquidityUsd) is what can actually be borrowed or withdrawn: availableLiquidityUsd = TVL × (1 − utilization). It is included in results for context.\n" +
+  "- Available liquidity (availableLiquidityUsd) = TVL × (1 − utilization). This represents funds available to be BORROWED or WITHDRAWN — it has no bearing on whether new deposits are possible.\n" +
+  "- Depositing is always possible regardless of available liquidity. $0 available liquidity means 100% utilization (all deposits are borrowed out), which produces maximum deposit yield — this is a positive signal for depositors, not a warning.\n" +
+  "- Never warn a user that $0 or low available liquidity prevents depositing. It does not. Only a supplyCap (not exposed in current data) could block new deposits.\n" +
+  "- When presenting deposit opportunities, mention available liquidity only as context for potential borrowers or those who may want to withdraw soon.\n" +
   "- Tools filter markets by TVL (default: $10,000 minimum via minTvlUsd). Markets below this threshold are excluded.\n" +
   "- Each tool response includes a filteredCount field. If filteredCount > 0, append: " +
   "'_Note: X market(s) with less than $Y TVL were excluded._'\n" +
-  "- If the user asks for all markets including small ones, pass minTvlUsd: 0 to the tool.\n" +
-  "- When ranking markets, prefer higher availableLiquidityUsd among similarly-yielding options.\n" +
-  "- Never recommend a market solely on yield without mentioning its available liquidity.\n\n" +
+  "- If the user asks for all markets including small ones, pass minTvlUsd: 0 to the tool.\n\n" +
 
   "AFTER ACTIONS — whenever you generate a borrow, repay, deposit, or withdraw transaction:\n" +
   "1. The UI automatically renders a Simulation panel and transaction executor — do NOT output any summary, table, or list of transaction details, position data, health factors, APRs, addresses, or calldata.\n" +
