@@ -328,6 +328,314 @@ function createMcpServer(apiKey?: string): McpServer {
     }
   );
 
+  // ── Documentation resources ──────────────────────────────────────────────────
+  // Resources expose static reference material that MCP clients and LLMs can read.
+  // Unlike tools (which the model executes), resources are data the host pulls in as context.
+
+  server.registerResource("overview", "docs://overview", { mimeType: "text/markdown" }, async (uri: URL) => ({
+    contents: [{
+      uri: uri.href,
+      mimeType: "text/markdown",
+      text: `# 1delta Lending MCP Server
+
+## What is this?
+
+This MCP server gives AI assistants (Claude, GPT, Gemini, etc.) and developer tooling direct access to the **1delta lending aggregator** — a DeFi protocol that aggregates lending markets across chains.
+
+Through this server you can:
+- **Query** lending markets, token prices, wallet balances, and user positions
+- **Build transactions** to deposit, withdraw, borrow, and repay across 30+ chains
+
+## Available resources
+
+| URI | Description |
+|-----|-------------|
+| \`docs://overview\` | This document |
+| \`docs://authentication\` | How to authenticate for better rate limits |
+| \`docs://tools\` | Full tool reference with parameters and examples |
+| \`docs://chains\` | Supported chain IDs |
+| \`docs://lenders\` | Supported lending protocol identifiers |
+
+## Quick start
+
+1. Connect your MCP client to this server's endpoint \`/mcp\`
+2. Optionally supply your 1delta API key via \`Authorization: Bearer <key>\` on the initialize request
+3. Call \`get_supported_chains\` and \`get_lender_ids\` to discover available networks and protocols
+4. Use \`find_market\` or \`get_lending_markets\` to locate a market
+5. Use \`get_deposit_calldata\` / \`get_borrow_calldata\` / etc. to build transactions
+
+## Supported networks (sample)
+
+Ethereum (1), Arbitrum (42161), Base (8453), Polygon (137), Optimism (10), Mantle (5000), Scroll (534352), Linea (59144), Avalanche (43114), BNB Chain (56), and 20+ more.
+
+Call \`get_supported_chains\` for the full current list.
+`,
+    }],
+  }));
+
+  server.registerResource("authentication", "docs://authentication", { mimeType: "text/markdown" }, async (uri: URL) => ({
+    contents: [{
+      uri: uri.href,
+      mimeType: "text/markdown",
+      text: `# Authentication
+
+## API key (optional)
+
+Supplying a 1delta API key gives your session higher rate limits on the 1delta Portal API.
+
+**How to provide your key:**
+
+Include it as a Bearer token in the HTTP \`Authorization\` header on the MCP \`initialize\` request:
+
+\`\`\`
+Authorization: Bearer <your-1delta-api-key>
+\`\`\`
+
+The key is captured at session initialization and forwarded as \`x-api-key\` on every 1delta API call made during your session.
+
+## Without a key
+
+Requests still work but are subject to the public rate limits of the 1delta Portal API.
+
+## Key resolution order
+
+1. Client-supplied key (via \`Authorization\` header) — highest priority
+2. Server environment variable \`ONEDELTA_API_KEY\` — server-level fallback
+3. No key — public rate limits
+
+## Get a key
+
+Register at [auth.1delta.io](https://auth.1delta.io) to obtain a 1delta API key.
+`,
+    }],
+  }));
+
+  server.registerResource("tools", "docs://tools", { mimeType: "text/markdown" }, async (uri: URL) => ({
+    contents: [{
+      uri: uri.href,
+      mimeType: "text/markdown",
+      text: `# Tool Reference
+
+## Data tools
+
+### \`find_market\`
+Find a lending market's \`marketUid\` by token and/or protocol. Call this before any action tool.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| chainId | string | yes | Numeric chain ID e.g. \`"42161"\` for Arbitrum |
+| assetGroup | string | no | Asset name e.g. \`"USDC"\`, \`"ETH"\` (use \`"ETH"\` for WETH) |
+| tokenAddress | string | no | Token contract address (0x-) |
+| lender | string | no | Protocol ID e.g. \`"AAVE_V3"\` |
+| count | number | no | Max results (default 10) |
+| minTvlUsd | number | no | Min TVL filter (default 10000) |
+
+Returns: \`{ markets: [...], filteredCount: number }\`
+
+---
+
+### \`get_lending_markets\`
+Browse markets with sorting and filtering. Use \`sortBy="depositRate"&sortDir="desc"\` to find the best yield.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| chainId | string | yes | Chain ID |
+| lender | string | no | Protocol ID filter |
+| assetGroups | string | no | Comma-separated asset names |
+| minYield / maxYield | number | no | Deposit rate bounds |
+| minTvlUsd | number | no | Min TVL (default 10000) |
+| sortBy | enum | no | \`depositRate\` \| \`variableBorrowRate\` \| \`utilization\` \| \`totalDepositsUsd\` |
+| sortDir | enum | no | \`asc\` \| \`desc\` |
+| count | number | no | Results (default 100) |
+
+---
+
+### \`get_user_positions\`
+Get all lending and borrowing positions for a wallet.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| account | string | yes | Wallet address (0x-) |
+| chains | string | yes | Comma-separated chain IDs e.g. \`"1,42161"\` |
+| lenders | string | no | Comma-separated lender IDs |
+
+---
+
+### \`get_supported_chains\`
+Returns the full list of supported chains with IDs and names. No parameters.
+
+---
+
+### \`get_lender_ids\`
+Returns all supported lending protocol identifiers (e.g. AAVE_V3, COMPOUND_V3, LENDLE). No parameters.
+
+---
+
+### \`get_token_info\`
+Look up token metadata (address, decimals, symbol). Call this before action tools when decimals are unknown.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| chainId | string | no | Chain ID |
+| assetGroup | string | no | Asset group e.g. \`"USDC"\` |
+| symbol | string | no | Token symbol |
+| address | string | no | Token contract address |
+
+---
+
+### \`get_token_price\`
+Get current USD prices by asset group key.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| assets | string[] | yes | Asset group keys e.g. \`["ETH","USDC"]\` |
+
+---
+
+### \`get_token_balances\`
+Get token balances for a wallet on a specific chain.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| chainId | string | yes | Chain ID |
+| account | string | yes | Wallet address |
+| assets | string | yes | Comma-separated token addresses |
+
+---
+
+## Action tools
+
+> Action tools return transaction calldata. The caller must sign and submit the transaction via their wallet.
+
+### \`get_deposit_calldata\`
+Build calldata to deposit tokens into a lending pool.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| marketUid | string | yes | \`lender:chainId:tokenAddress\` |
+| amount | string | yes | Amount in base units (no decimals) |
+| operator | string | yes | Wallet address (signer) |
+| receiver | string | no | Receipt recipient (default: operator) |
+| mode | \`direct\`\|\`proxy\` | no | \`direct\` = raw protocol, \`proxy\` = via 1delta |
+
+---
+
+### \`get_withdraw_calldata\`
+Build calldata to withdraw from a lending pool.
+
+Same parameters as deposit, plus:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| isAll | boolean | no | Withdraw full balance |
+
+---
+
+### \`get_borrow_calldata\`
+Build calldata to borrow from a lending pool.
+
+Same parameters as deposit, plus:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| lendingMode | \`"0"\`\|\`"1"\`\|\`"2"\` | no | Rate mode: 0=none, 1=stable, 2=variable |
+
+---
+
+### \`get_repay_calldata\`
+Build calldata to repay borrowed assets.
+
+Same parameters as borrow, plus:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| isAll | boolean | no | Repay full balance |
+
+---
+
+## Amount conversion
+
+All action tools take \`amount\` in base units (integer string, no decimal point).
+
+\`\`\`
+human amount × 10^decimals = base units
+
+Examples:
+  1.5 USDC  → "1500000"      (decimals = 6)
+  0.1 ETH   → "100000000000000000"  (decimals = 18)
+  0.001 WBTC → "100000"      (decimals = 8)
+\`\`\`
+
+Use \`get_token_info\` to retrieve decimals for any token.
+`,
+    }],
+  }));
+
+  server.registerResource("chains", "docs://chains", { mimeType: "text/markdown" }, async (uri: URL) => ({
+    contents: [{
+      uri: uri.href,
+      mimeType: "text/markdown",
+      text: `# Supported Chains
+
+Call \`get_supported_chains\` for the live list with full metadata.
+
+## Common chain IDs
+
+| Chain | ID |
+|-------|----|
+| Ethereum | 1 |
+| BNB Chain | 56 |
+| Polygon | 137 |
+| Optimism | 10 |
+| Arbitrum | 42161 |
+| Avalanche | 43114 |
+| Base | 8453 |
+| Mantle | 5000 |
+| Scroll | 534352 |
+| Linea | 59144 |
+| zkSync Era | 324 |
+| Polygon zkEVM | 1101 |
+| Metis | 1088 |
+| Taiko | 167000 |
+| Gnosis | 100 |
+| Fantom | 250 |
+
+All \`chainId\` parameters are passed as **strings** (e.g. \`"42161"\`).
+`,
+    }],
+  }));
+
+  server.registerResource("lenders", "docs://lenders", { mimeType: "text/markdown" }, async (uri: URL) => ({
+    contents: [{
+      uri: uri.href,
+      mimeType: "text/markdown",
+      text: `# Supported Lending Protocols
+
+Call \`get_lender_ids\` for the live list.
+
+## Protocol identifiers
+
+| ID | Protocol |
+|----|---------|
+| AAVE_V2 | Aave v2 |
+| AAVE_V3 | Aave v3 |
+| COMPOUND_V2 | Compound v2 |
+| COMPOUND_V3 | Compound v3 |
+| LENDLE | Lendle (Mantle) |
+| AURELIUS | Aurelius (Mantle) |
+| MENDI | Mendi Finance (Linea) |
+| MOONWELL | Moonwell (Base) |
+| SILO | Silo Finance |
+| RADIANT_V2 | Radiant Capital v2 |
+| MORPHO | Morpho |
+| SPARK | Spark Protocol |
+| VENUS | Venus (BNB Chain) |
+
+Use these exact strings in the \`lender\` parameter of \`find_market\` and \`get_lending_markets\`.
+`,
+    }],
+  }));
+
   return server;
 }
 
