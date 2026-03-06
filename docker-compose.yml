@@ -1,5 +1,17 @@
 services:
-  # MCP client HTTP server — spawns the MCP backend as a child process
+  # Standalone MCP server — Streamable HTTP on port 3002
+  mcp-server:
+    build:
+      context: .
+      dockerfile: packages/backend/Dockerfile
+    ports:
+      - "3002:3002"
+    environment:
+      PORT: 3002
+      ONEDELTA_API_KEY: ${ONEDELTA_API_KEY}
+    restart: unless-stopped
+
+  # MCP client HTTP bridge — connects to mcp-server, exposes chat API on port 3001
   client:
     build:
       context: .
@@ -9,6 +21,9 @@ services:
     environment:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       PORT: 3001
+      MCP_SERVER_URL: http://mcp-server:3002/mcp
+    depends_on:
+      - mcp-server
     restart: unless-stopped
 
   # React chat UI served by nginx
