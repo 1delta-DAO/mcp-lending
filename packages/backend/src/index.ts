@@ -7,9 +7,12 @@ import { randomUUID } from "crypto";
 
 const PORT = parseInt(process.env.PORT ?? "3002", 10);
 const API_BASE_URL = "https://portal.1delta.io/v1";
-const ONEDELTA_API_KEY = process.env.ONEDELTA_API_KEY;
+// Server-level fallback key — used when the connecting client doesn't supply their own.
+const SERVER_API_KEY = process.env.ONEDELTA_API_KEY;
 
-async function makeApiRequest(endpoint: string, params: Record<string, unknown> = {}) {
+// apiKey: per-session key supplied by the client via Authorization header.
+// Falls back to SERVER_API_KEY, then no key (public rate limits).
+async function makeApiRequest(endpoint: string, params: Record<string, unknown> = {}, apiKey?: string) {
   const url = new URL(`${API_BASE_URL}${endpoint}`);
   Object.entries(params).forEach(([key, value]) => {
     if (value === undefined || value === null) return;
@@ -20,7 +23,8 @@ async function makeApiRequest(endpoint: string, params: Record<string, unknown> 
     }
   });
   const headers: Record<string, string> = {};
-  if (ONEDELTA_API_KEY) headers['x-api-key'] = ONEDELTA_API_KEY;
+  const effectiveKey = apiKey ?? SERVER_API_KEY;
+  if (effectiveKey) headers['x-api-key'] = effectiveKey;
   try {
     const response = await axios.get(url.toString(), { headers });
     return response.data;
@@ -85,8 +89,11 @@ function slimPools(
 // MCP server factory — creates a fresh server instance per client session.
 // ---------------------------------------------------------------------------
 
-function createMcpServer(): McpServer {
+function createMcpServer(apiKey?: string): McpServer {
   const server = new McpServer({ name: "lending-mcp-server", version: "0.1.0" });
+  // Convenience wrapper — all tool handlers use this so the per-session key is applied automatically.
+  const api = (endpoint: string, params: Record<string, unknown> = {}) =>
+    makeApiRequest(endpoint, params, apiKey);
 
   // ── Data tools ──────────────────────────────────────────────────────────────
 
@@ -105,7 +112,7 @@ function createMcpServer(): McpServer {
     },
     async ({ chainId, assetGroup, tokenAddress, lender, count, minTvlUsd }) => {
       try {
-        const raw = await makeApiRequest("/data/lending/pools", {
+        const raw = await api("/data/lending/pools", {
           chainId,
           assetGroups: assetGroup,
           underlyings: tokenAddress,
@@ -136,7 +143,7 @@ function createMcpServer(): McpServer {
     },
     async ({ minTvlUsd, ...args }) => {
       try {
-        const raw = await makeApiRequest("/data/lending/pools", args);
+        const raw = await api("/data/lending/pools", args);
         const result = slimPools(raw, minTvlUsd ?? 10_000);
         return ok(result);
       } catch (e) { return err(e); }
@@ -154,7 +161,7 @@ function createMcpServer(): McpServer {
       },
     },
     async (args) => {
-      try { return ok(await makeApiRequest("/data/lending/user-positions", args)); }
+      try { return ok(await api("/data/lending/user-positions", args)); }
       catch (e) { return err(e); }
     }
   );
@@ -166,7 +173,7 @@ function createMcpServer(): McpServer {
       inputSchema: {},
     },
     async () => {
-      try { return ok(await makeApiRequest("/data/chains")); }
+      try { return ok(await api("/data/chains")); }
       catch (e) { return err(e); }
     }
   );
@@ -178,7 +185,7 @@ function createMcpServer(): McpServer {
       inputSchema: {},
     },
     async () => {
-      try { return ok(await makeApiRequest("/data/lender-ids")); }
+      try { return ok(await api("/data/lender-ids")); }
       catch (e) { return err(e); }
     }
   );
@@ -195,7 +202,7 @@ function createMcpServer(): McpServer {
       },
     },
     async (args) => {
-      try { return ok(await makeApiRequest("/data/token/available", args)); }
+      try { return ok(await api("/data/token/available", args)); }
       catch (e) { return err(e); }
     }
   );
@@ -210,7 +217,7 @@ function createMcpServer(): McpServer {
     },
     async ({ assets }) => {
       try {
-        const raw = await makeApiRequest("/data/prices/latest", { assets });
+        const raw = await api("/data/prices/latest", { assets });
         const items = (raw as Record<string, unknown>)?.data
           ? ((raw as Record<string, unknown>).data as Record<string, unknown>)?.items
           : raw;
@@ -239,7 +246,7 @@ function createMcpServer(): McpServer {
       },
     },
     async (args) => {
-      try { return ok(await makeApiRequest("/data/token/balances", args)); }
+      try { return ok(await api("/data/token/balances", args)); }
       catch (e) { return err(e); }
     }
   );
@@ -259,7 +266,7 @@ function createMcpServer(): McpServer {
       },
     },
     async (args) => {
-      try { return ok(await makeApiRequest("/actions/lending/deposit", { ...args, simulate: true })); }
+      try { return ok(await api("/actions/lending/deposit", { ...args, simulate: true })); }
       catch (e) { return err(e); }
     }
   );
@@ -278,7 +285,7 @@ function createMcpServer(): McpServer {
       },
     },
     async (args) => {
-      try { return ok(await makeApiRequest("/actions/lending/withdraw", { ...args, simulate: true })); }
+      try { return ok(await api("/actions/lending/withdraw", { ...args, simulate: true })); }
       catch (e) { return err(e); }
     }
   );
@@ -297,7 +304,7 @@ function createMcpServer(): McpServer {
       },
     },
     async (args) => {
-      try { return ok(await makeApiRequest("/actions/lending/borrow", { ...args, simulate: true })); }
+      try { return ok(await api("/actions/lending/borrow", { ...args, simulate: true })); }
       catch (e) { return err(e); }
     }
   );
@@ -316,7 +323,7 @@ function createMcpServer(): McpServer {
       },
     },
     async (args) => {
-      try { return ok(await makeApiRequest("/actions/lending/repay", { ...args, simulate: true })); }
+      try { return ok(await api("/actions/lending/repay", { ...args, simulate: true })); }
       catch (e) { return err(e); }
     }
   );
@@ -343,7 +350,7 @@ const transports = new Map<string, StreamableHTTPServerTransport>();
 async function handleMcpRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Mcp-Session-Id");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Mcp-Session-Id, Authorization");
 
   if (req.method === "OPTIONS") {
     res.writeHead(204);
@@ -372,6 +379,16 @@ async function handleMcpRequest(req: IncomingMessage, res: ServerResponse): Prom
       return;
     }
 
+    // Extract optional 1Delta API key from Authorization: Bearer <key>
+    const authHeader = req.headers["authorization"];
+    const clientApiKey = authHeader?.startsWith("Bearer ")
+      ? authHeader.slice(7).trim() || undefined
+      : undefined;
+
+    if (clientApiKey) {
+      console.log("Session authenticated with client API key");
+    }
+
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => randomUUID(),
       onsessioninitialized: (id) => { transports.set(id, transport); },
@@ -381,7 +398,7 @@ async function handleMcpRequest(req: IncomingMessage, res: ServerResponse): Prom
       if (transport.sessionId) transports.delete(transport.sessionId);
     };
 
-    const mcpServer = createMcpServer();
+    const mcpServer = createMcpServer(clientApiKey);
     await mcpServer.connect(transport);
     await transport.handleRequest(req, res, body);
     return;
