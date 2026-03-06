@@ -1,29 +1,23 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { createServer } from "http";
 import type { IncomingMessage, ServerResponse } from "http";
 import { createProvider, PROVIDERS, PROVIDER_INFO } from "./providers/index.js";
 import type { HistoryMessage } from "./providers/types.js";
 
 const PORT = parseInt(process.env.PORT ?? "3001", 10);
-
-// Resolve the backend binary path relative to this compiled file.
-// When compiled: packages/client/dist/index.js -> ../../backend/dist/index.js = packages/backend/dist/index.js
-const BACKEND_PATH = new URL("../../backend/dist/index.js", import.meta.url).pathname;
+const MCP_SERVER_URL = process.env.MCP_SERVER_URL ?? "http://localhost:3002/mcp";
 
 let mcpClient: Client;
 
 async function initializeMCPClient(): Promise<Client> {
-  const transport = new StdioClientTransport({
-    command: "node",
-    args: [BACKEND_PATH],
-  });
+  const transport = new StreamableHTTPClientTransport(new URL(MCP_SERVER_URL));
 
   const mcp = new Client({ name: "claude-lending-client", version: "0.1.0" });
   await mcp.connect(transport);
 
   const { tools } = await mcp.listTools();
-  console.log(`MCP server connected — ${tools.length} tools available`);
+  console.log(`MCP server connected (${MCP_SERVER_URL}) — ${tools.length} tools available`);
   tools.forEach((t) => console.log(`  • ${t.name}`));
 
   return mcp;
