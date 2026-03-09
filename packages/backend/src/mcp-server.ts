@@ -26,6 +26,13 @@ async function makeApiRequest(
     const errorData = (await response.json().catch(() => ({}))) as Record<string, unknown>;
     const message =
       (errorData?.error as Record<string, unknown>)?.message ?? response.statusText;
+    if (response.status === 429) {
+      throw new Error(
+        `API Error 429: Rate limit exceeded. ` +
+        `To get higher limits, provide a 1delta API key via the Authorization: Bearer <key> header when connecting. ` +
+        `Get a key at https://auth.1delta.io`,
+      );
+    }
     throw new Error(`API Error ${response.status}: ${message}`);
   }
   return response.json();
