@@ -23,6 +23,16 @@ async function initializeMCPClient(): Promise<Client> {
   return mcp;
 }
 
+function isSessionError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return msg.includes("Server not initialized") || msg.includes("Session not found") || msg.includes("400");
+}
+
+async function reconnect(): Promise<void> {
+  console.log("MCP session lost — reconnecting…");
+  mcpClient = await initializeMCPClient();
+}
+
 // Transaction step extracted from action tool results.
 interface TxStep {
   description: string;
@@ -86,16 +96,22 @@ function extractAction(
 const TOOL_RESULT_CHAR_LIMIT = 6000;
 
 async function callMCPTool(name: string, input: Record<string, unknown>): Promise<string> {
-  try {
+  const attempt = async () => {
     const response = await mcpClient.callTool({ name, arguments: input });
-    // Extract the text payload directly instead of re-serialising the MCP envelope.
     const text = (response.content as { type: string; text?: string }[])
       .filter((c) => c.type === "text" && c.text)
       .map((c) => c.text!)
       .join("\n");
     if (text.length <= TOOL_RESULT_CHAR_LIMIT) return text;
     return text.slice(0, TOOL_RESULT_CHAR_LIMIT) + `\n[truncated — ${text.length - TOOL_RESULT_CHAR_LIMIT} chars omitted. Use tighter filters to reduce results.]`;
+  };
+  try {
+    return await attempt();
   } catch (err) {
+    if (isSessionError(err)) {
+      await reconnect();
+      return attempt();
+    }
     return `Tool error: ${err instanceof Error ? err.message : String(err)}`;
   }
 }
@@ -157,7 +173,15 @@ async function main() {
           : query;
 
         console.log(`\nQuery: ${query}${userAddress ? ` (wallet: ${userAddress})` : ""}${provider ? ` (provider: ${provider})` : ""}`);
-        const { tools } = await mcpClient.listTools();
+        let tools: Awaited<ReturnType<typeof mcpClient.listTools>>["tools"];
+        try {
+          ({ tools } = await mcpClient.listTools());
+        } catch (err) {
+          if (isSessionError(err)) {
+            await reconnect();
+            ({ tools } = await mcpClient.listTools());
+          } else throw err;
+        }
 
         // Collect transaction calldata and quote returned by action tools during this request.
         const collectedTxSteps: TxStep[] = [];
