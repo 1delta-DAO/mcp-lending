@@ -312,17 +312,70 @@ export function createMcpServer(apiKey?: string): McpServer {
     },
   );
 
+  // ---------------------------------------------------------------------------
+  // Amount conversion — must be called before any action tool.
+  // ---------------------------------------------------------------------------
+
+  server.registerTool(
+    "convert_amount",
+    {
+      description:
+        "Convert a human-readable token amount (or a USD value) to the integer base-unit string " +
+        "required by action tools (get_deposit_calldata, get_withdraw_calldata, get_borrow_calldata, get_repay_calldata). " +
+        "ALWAYS call this tool before an action tool — never guess base units manually. " +
+        "The decimals and priceUsd values are returned by get_lending_markets / find_market in each market object. " +
+        "Mode 1 – token amount: supply humanAmount + decimals. Example: 1 USDC, decimals=6 → '1000000'. " +
+        "Mode 2 – USD value: supply usdAmount + priceUsd + decimals. Example: $10 of WETH at $2000/ETH, decimals=18 → '5000000000000000'.",
+      inputSchema: {
+        decimals: z.number().int().describe("Token decimals from the market object (e.g. 18 for WETH, 6 for USDC/USDT, 8 for WBTC)"),
+        humanAmount: z
+          .string()
+          .optional()
+          .describe("Human-readable token amount e.g. '1', '0.5', '0.001'. Use this when the user specifies an amount in token units."),
+        usdAmount: z
+          .string()
+          .optional()
+          .describe("USD value to convert e.g. '100'. Use this when the user specifies an amount in USD. Requires priceUsd."),
+        priceUsd: z
+          .number()
+          .optional()
+          .describe("Token price in USD — use the priceUsd field from the market object. Required when usdAmount is provided."),
+      },
+    },
+    ({ decimals, humanAmount, usdAmount, priceUsd }) => {
+      try {
+        let tokenAmount: number;
+        if (usdAmount !== undefined) {
+          if (!priceUsd || priceUsd === 0) return err("priceUsd is required and must be non-zero when usdAmount is provided");
+          tokenAmount = parseFloat(usdAmount) / priceUsd;
+        } else if (humanAmount !== undefined) {
+          tokenAmount = parseFloat(humanAmount);
+        } else {
+          return err("Provide either humanAmount or usdAmount");
+        }
+        if (isNaN(tokenAmount) || tokenAmount < 0) return err("Invalid amount");
+        // Use string-based arithmetic to avoid floating-point precision loss.
+        const fixed = tokenAmount.toFixed(decimals);
+        const [intPart, fracPart = ""] = fixed.split(".");
+        const fracPadded = fracPart.padEnd(decimals, "0").slice(0, decimals);
+        const scale = BigInt(10) ** BigInt(decimals);
+        const baseUnits = (BigInt(intPart) * scale + BigInt(fracPadded)).toString();
+        return ok({ baseUnits, humanAmount: tokenAmount, decimals });
+      } catch (e) {
+        return err(e);
+      }
+    },
+  );
+
+  const AMOUNT_DESC = "Amount in base units (integer string). Use convert_amount to obtain this from a human-readable token amount or USD value together with the market's decimals and priceUsd fields.";
+
   server.registerTool(
     "get_deposit_calldata",
     {
-      description: "Build calldata to deposit into a lending pool.",
+      description: "Build calldata to deposit into a lending pool. Call convert_amount first to get the base-unit amount.",
       inputSchema: {
         marketUid: z.string().describe("Market UID (lender:chainId:tokenAddress)"),
-        amount: z
-          .string()
-          .describe(
-            "Amount in the token's base units (no decimals). Convert the human-readable amount: multiply by 10^decimals. Common decimals: ETH/WETH/most ERC-20s=18, USDC/USDT=6, WBTC=8. E.g. 0.00026 WETH → '260000000000000', 0.5 USDC → '500000'.",
-          ),
+        amount: z.string().describe(AMOUNT_DESC),
         operator: z.string().describe("Wallet address"),
         receiver: z.string().optional().describe("Receipt recipient (default: operator)"),
         mode: z
@@ -343,14 +396,10 @@ export function createMcpServer(apiKey?: string): McpServer {
   server.registerTool(
     "get_withdraw_calldata",
     {
-      description: "Build calldata to withdraw from a lending pool.",
+      description: "Build calldata to withdraw from a lending pool. Call convert_amount first to get the base-unit amount.",
       inputSchema: {
         marketUid: z.string().describe("Market UID (lender:chainId:tokenAddress)"),
-        amount: z
-          .string()
-          .describe(
-            "Amount in the token's base units (no decimals). Convert the human-readable amount: multiply by 10^decimals. Common decimals: ETH/WETH/most ERC-20s=18, USDC/USDT=6, WBTC=8. E.g. 0.00026 WETH → '260000000000000', 0.5 USDC → '500000'.",
-          ),
+        amount: z.string().describe(AMOUNT_DESC),
         operator: z.string().describe("Wallet address"),
         receiver: z.string().optional().describe("Recipient address"),
         isAll: z.boolean().optional().describe("Withdraw full balance"),
@@ -369,14 +418,10 @@ export function createMcpServer(apiKey?: string): McpServer {
   server.registerTool(
     "get_borrow_calldata",
     {
-      description: "Build calldata to borrow from a lending pool.",
+      description: "Build calldata to borrow from a lending pool. Call convert_amount first to get the base-unit amount.",
       inputSchema: {
         marketUid: z.string().describe("Market UID (lender:chainId:tokenAddress)"),
-        amount: z
-          .string()
-          .describe(
-            "Amount in the token's base units (no decimals). Convert the human-readable amount: multiply by 10^decimals. Common decimals: ETH/WETH/most ERC-20s=18, USDC/USDT=6, WBTC=8. E.g. 0.00026 WETH → '260000000000000', 0.5 USDC → '500000'.",
-          ),
+        amount: z.string().describe(AMOUNT_DESC),
         operator: z.string().describe("Wallet address"),
         receiver: z.string().optional().describe("Recipient address"),
         lendingMode: z
@@ -398,14 +443,10 @@ export function createMcpServer(apiKey?: string): McpServer {
   server.registerTool(
     "get_repay_calldata",
     {
-      description: "Build calldata to repay borrowed assets.",
+      description: "Build calldata to repay borrowed assets. Call convert_amount first to get the base-unit amount.",
       inputSchema: {
         marketUid: z.string().describe("Market UID (lender:chainId:tokenAddress)"),
-        amount: z
-          .string()
-          .describe(
-            "Amount in the token's base units (no decimals). Convert the human-readable amount: multiply by 10^decimals. Common decimals: ETH/WETH/most ERC-20s=18, USDC/USDT=6, WBTC=8. E.g. 0.00026 WETH → '260000000000000', 0.5 USDC → '500000'.",
-          ),
+        amount: z.string().describe(AMOUNT_DESC),
         operator: z.string().describe("Wallet address"),
         isAll: z.boolean().optional().describe("Repay full balance"),
         lendingMode: z
