@@ -58,13 +58,15 @@ function slimPools(
     const tvl = parseFloat(m.totalDepositsUsd as string) || 0;
     const util = parseFloat(m.utilization as string) || 0;
     const availableLiquidityUsd = Math.round(tvl * (1 - util) * 100) / 100;
+    const underlying = m.underlyingInfo as Record<string, unknown> | undefined;
+    const asset = underlying?.asset as Record<string, unknown> | undefined;
+    const prices = underlying?.prices as Record<string, unknown> | undefined;
     return {
       marketUid: m.marketUid,
-      symbol:
-        m.assetGroup ??
-        m.symbol ??
-        m.tokenSymbol ??
-        (m.underlying as Record<string, unknown>)?.symbol,
+      symbol: asset?.symbol ?? asset?.assetGroup ?? m.assetGroup ?? m.symbol,
+      tokenAddress: asset?.address,
+      decimals: asset?.decimals,
+      priceUsd: prices?.priceUsd,
       depositRate: m.depositRate,
       variableBorrowRate: m.variableBorrowRate,
       totalDepositsUsd: tvl,
