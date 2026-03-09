@@ -577,6 +577,25 @@ Register at [auth.1delta.io](https://auth.1delta.io) to obtain a 1delta API key.
           mimeType: "text/markdown",
           text: `# Tool Reference
 
+## Market response fields
+
+Both \`find_market\` and \`get_lending_markets\` return markets with these fields:
+
+| Field | Description |
+|-------|-------------|
+| marketUid | Unique market identifier (\`lender:chainId:tokenAddress\`) |
+| symbol | Token symbol |
+| tokenAddress | Underlying token contract address |
+| decimals | Token decimals — use with \`convert_amount\` before action tools |
+| priceUsd | Current token price in USD — use with \`convert_amount\` for USD-based amounts |
+| depositRate | Deposit APR (%) |
+| variableBorrowRate | Variable borrow APR (%) |
+| totalDepositsUsd | Total value locked (USD) |
+| availableLiquidityUsd | Liquidity available to borrow/withdraw |
+| utilization | Utilization ratio (0–1) |
+
+---
+
 ## Data tools
 
 ### \`find_market\`
@@ -590,8 +609,6 @@ Find a lending market's \`marketUid\` by token and/or protocol. Call this before
 | lender | string | no | Protocol ID e.g. \`"AAVE_V3"\` |
 | count | number | no | Max results (default 10) |
 | minTvlUsd | number | no | Min TVL filter (default 10000) |
-
-Returns: \`{ markets: [...], filteredCount: number }\`
 
 ---
 
@@ -633,7 +650,7 @@ Returns all supported lending protocol identifiers (e.g. AAVE_V3, COMPOUND_V3, L
 ---
 
 ### \`get_token_info\`
-Look up token metadata (address, decimals, symbol). Call this before action tools when decimals are unknown.
+Look up token metadata (address, decimals, symbol) for tokens not in a market result.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -645,7 +662,7 @@ Look up token metadata (address, decimals, symbol). Call this before action tool
 ---
 
 ### \`get_token_price\`
-Get current USD prices by asset group key.
+Get current USD prices by asset group key. Use only when a token's price is not available from a market result.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -664,9 +681,33 @@ Get token balances for a wallet on a specific chain.
 
 ---
 
+## Amount conversion
+
+### \`convert_amount\`
+**Always call this before any action tool.** Converts a human-readable amount to the integer base-unit string required by action tools.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| decimals | number | yes | Token decimals from the market object |
+| humanAmount | string | no | Token amount e.g. \`"1"\`, \`"0.001"\` |
+| usdAmount | string | no | USD value e.g. \`"100"\` — requires \`priceUsd\` |
+| priceUsd | number | no | Token price from the market's \`priceUsd\` field |
+
+**Examples:**
+\`\`\`
+// 1 USDC (decimals=6)
+convert_amount({ humanAmount: "1", decimals: 6 }) → { baseUnits: "1000000" }
+
+// $10 of WETH at $2000/ETH (decimals=18)
+convert_amount({ usdAmount: "10", priceUsd: 2000, decimals: 18 }) → { baseUnits: "5000000000000000" }
+\`\`\`
+
+---
+
 ## Action tools
 
 > Action tools return transaction calldata. The caller must sign and submit the transaction via their wallet.
+> Always call \`convert_amount\` first to obtain the base-unit \`amount\`.
 
 ### \`get_deposit_calldata\`
 Build calldata to deposit tokens into a lending pool.
@@ -674,7 +715,7 @@ Build calldata to deposit tokens into a lending pool.
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | marketUid | string | yes | \`lender:chainId:tokenAddress\` |
-| amount | string | yes | Amount in base units (no decimals) |
+| amount | string | yes | Base-unit amount from \`convert_amount\` |
 | operator | string | yes | Wallet address (signer) |
 | receiver | string | no | Receipt recipient (default: operator) |
 | mode | \`direct\`\|\`proxy\` | no | \`direct\` = raw protocol, \`proxy\` = via 1delta |
@@ -714,20 +755,52 @@ Same parameters as borrow, plus:
 
 ---
 
-## Amount conversion
+## Asset group mappings
 
-All action tools take \`amount\` in base units (integer string, no decimal point).
+The \`assetGroup\` parameter used in \`find_market\` and \`get_lending_markets\` follows these rules:
+
+| Token | assetGroup to use |
+|-------|-------------------|
+| WETH | \`"ETH"\` |
+| All other tokens | Their own symbol (e.g. \`"USDC"\`, \`"WBTC"\`, \`"WSTETH"\`) |
+
+> **Note:** The ETH mapping applies **only** to WETH. Staked/wrapped ETH variants (wstETH, stETH, rETH, cbETH) use their own symbols.
+
+---
+
+## Action tool response format
+
+Action tools (\`get_deposit_calldata\`, \`get_withdraw_calldata\`, \`get_borrow_calldata\`, \`get_repay_calldata\`) return calldata in this JSON structure:
+
+\`\`\`json
+{
+  "actions": {
+    "permissions": [
+      { "to": "0x...", "data": "0x...", "value": "0x0", "info": "approve" }
+    ],
+    "transactions": [
+      { "to": "0x...", "data": "0x...", "value": "0x0" }
+    ]
+  }
+}
+\`\`\`
+
+- **\`permissions\`** — ERC-20 approval transactions that **must be submitted first** before the main transaction.
+- **\`transactions\`** — The main protocol transaction(s) to submit after permissions.
+
+Each entry contains \`to\` (contract address), \`data\` (encoded calldata), and \`value\` (ETH value in hex). The client is responsible for signing and submitting these to the network via a wallet provider (e.g. ethers.js, viem, MetaMask).
+
+---
+
+## Action flow summary
 
 \`\`\`
-human amount × 10^decimals = base units
-
-Examples:
-  1.5 USDC  → "1500000"      (decimals = 6)
-  0.1 ETH   → "100000000000000000"  (decimals = 18)
-  0.001 WBTC → "100000"      (decimals = 8)
+1. get_lending_markets / find_market  →  get marketUid, decimals, priceUsd
+2. convert_amount(humanAmount or usdAmount, decimals, priceUsd?)  →  baseUnits
+3. get_deposit/withdraw/borrow/repay_calldata(marketUid, amount=baseUnits, operator)
+   → returns actions.permissions (approvals) + actions.transactions (main tx)
+4. Submit permissions first, then transactions — via wallet/signer on the target chain
 \`\`\`
-
-Use \`get_token_info\` to retrieve decimals for any token.
 `,
         },
       ],
