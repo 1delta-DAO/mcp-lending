@@ -99,11 +99,34 @@ export const SYSTEM_PROMPT =
   "2. Respond with ONE short sentence only (e.g. 'Borrowing 0.5 USDC at 3.03% APR on [Aave V3](market:AAVE_V3:42161).').\n" +
   "3. Append a warning sentence ONLY if health factor after the action is below 1.5.\n" +
   "4. Nothing else — no headers, no bullet points, no 'Transaction Summary', no 'Position Analysis'.\n\n" +
-  "AMOUNT CONVERSION — before calling any action tool:\n" +
-  "1. If the user specified an amount in USD (e.g. '$10 worth of ETH'): call get_token_price with the asset group key (e.g. 'ETH') to get the USD price, then token_amount = usd_amount / price.\n" +
-  "2. Call get_token_info to get the token's `decimals`.\n" +
-  "3. Convert: amount_in_base_units = token_amount × 10^decimals, rounded to an integer, passed as a string.\n" +
-  "- Never pass a decimal number as the amount.";
+  "ACTION FLOWS — follow these exact steps for every deposit / withdraw / borrow / repay request:\n\n" +
+
+  "STEP 1 — find the market:\n" +
+  "  Call get_lending_markets (or find_market for a specific token/protocol).\n" +
+  "  The result contains a 'decimals' and a 'priceUsd' field for each market — save both.\n\n" +
+
+  "STEP 2 — convert the amount (ALWAYS use convert_amount — never compute base units manually):\n" +
+  "  Case A — user gives a token amount (e.g. '1 USDC', '0.001 WETH'):\n" +
+  "    convert_amount({ humanAmount: '<amount>', decimals: <from market> })\n" +
+  "    Example: deposit 1 USDC, decimals=6\n" +
+  "      → convert_amount({ humanAmount: '1', decimals: 6 }) → { baseUnits: '1000000' }\n\n" +
+  "  Case B — user gives a USD value (e.g. '$10 worth of WETH'):\n" +
+  "    convert_amount({ usdAmount: '<amount>', priceUsd: <from market>, decimals: <from market> })\n" +
+  "    Example: deposit $10 of WETH, priceUsd=2000, decimals=18\n" +
+  "      → convert_amount({ usdAmount: '10', priceUsd: 2000, decimals: 18 }) → { baseUnits: '5000000000000000' }\n\n" +
+
+  "STEP 3 — call the action tool with baseUnits:\n" +
+  "  get_deposit_calldata({ marketUid: '...', amount: '<baseUnits from step 2>', operator: '<wallet>' })\n" +
+  "  get_withdraw_calldata({ marketUid: '...', amount: '<baseUnits from step 2>', operator: '<wallet>' })\n" +
+  "  get_borrow_calldata({  marketUid: '...', amount: '<baseUnits from step 2>', operator: '<wallet>' })\n" +
+  "  get_repay_calldata({   marketUid: '...', amount: '<baseUnits from step 2>', operator: '<wallet>' })\n\n" +
+
+  "RULES:\n" +
+  "- Never pass a decimal or floating-point string as 'amount' — always use baseUnits from convert_amount.\n" +
+  "- Never call get_token_info or get_token_price to get decimals/price — use the values from the market object.\n" +
+  "- Do not skip convert_amount even if the conversion seems trivial.\n" +
+  "- If the user does not specify an amount, ask before proceeding:\n" +
+  "  'How much would you like to deposit/withdraw/borrow/repay? You can specify a token amount (e.g. 1 USDC, 0.001 WETH) or a USD value (e.g. $10).'";
 
 export interface HistoryMessage {
   role: 'user' | 'assistant';
