@@ -79,6 +79,12 @@ function slimPools(
       totalDepositsUsd: tvl,
       availableLiquidityUsd,
       utilization: util,
+      risk: (m.risk as Record<string, unknown> | undefined)
+        ? {
+            score: (m.risk as Record<string, unknown>).score,
+            label: (m.risk as Record<string, unknown>).label,
+          }
+        : undefined,
     };
   });
 
@@ -126,9 +132,16 @@ export function createMcpServer(apiKey?: string): McpServer {
           .describe(
             "Minimum TVL (totalDepositsUsd) in USD. Default 10000. Lower only if the user explicitly asks for small/illiquid markets.",
           ),
+        maxRiskScore: z
+          .number()
+          .int()
+          .min(1)
+          .max(5)
+          .optional()
+          .describe("Maximum risk score to include (1=safe … 5=high risk). Default 4 — score-5 markets are excluded unless the user explicitly asks to include high-risk markets."),
       },
     },
-    async ({ chainId, assetGroup, tokenAddress, lender, count, minTvlUsd }) => {
+    async ({ chainId, assetGroup, tokenAddress, lender, count, minTvlUsd, maxRiskScore }) => {
       try {
         const raw = await api("/data/lending/pools", {
           chainId,
@@ -136,6 +149,7 @@ export function createMcpServer(apiKey?: string): McpServer {
           underlyings: tokenAddress,
           lender,
           count: count ?? 10,
+          maxRiskScore: maxRiskScore ?? 4,
         });
         const result = slimPools(raw, minTvlUsd ?? 10_000);
         return { content: [{ type: "text" as const, text: JSON.stringify(result) }] };
@@ -180,11 +194,18 @@ export function createMcpServer(apiKey?: string): McpServer {
           .optional()
           .describe("Sort direction. Use 'desc' for highest yield first."),
         count: z.number().int().optional().describe("Results (default 100)"),
+        maxRiskScore: z
+          .number()
+          .int()
+          .min(1)
+          .max(5)
+          .optional()
+          .describe("Maximum risk score to include (1=safe … 5=high risk). Default 4 — score-5 markets are excluded unless the user explicitly asks to include high-risk markets."),
       },
     },
-    async ({ minTvlUsd, ...args }) => {
+    async ({ minTvlUsd, maxRiskScore, ...args }) => {
       try {
-        const raw = await api("/data/lending/pools", args);
+        const raw = await api("/data/lending/pools", { ...args, maxRiskScore: maxRiskScore ?? 4 });
         const result = slimPools(raw, minTvlUsd ?? 10_000);
         return ok(result);
       } catch (e) {
@@ -593,6 +614,8 @@ Both \`find_market\` and \`get_lending_markets\` return markets with these field
 | totalDepositsUsd | Total value locked (USD) |
 | availableLiquidityUsd | Liquidity available to borrow/withdraw |
 | utilization | Utilization ratio (0–1) |
+| risk.score | Risk score 0–5 (0=unknown, 1=safe, 2=low, 3=medium, 4=elevated, 5=high risk). Score 5 (high risk) is excluded from all results. |
+| risk.label | Human-readable risk label |
 
 ---
 
@@ -609,6 +632,7 @@ Find a lending market's \`marketUid\` by token and/or protocol. Call this before
 | lender | string | no | Protocol ID e.g. \`"AAVE_V3"\` |
 | count | number | no | Max results (default 10) |
 | minTvlUsd | number | no | Min TVL filter (default 10000) |
+| maxRiskScore | number | no | Max risk score 1–5 (default 4, excludes score-5 high-risk markets) |
 
 ---
 
@@ -625,6 +649,7 @@ Browse markets with sorting and filtering. Use \`sortBy="depositRate"&sortDir="d
 | sortBy | enum | no | \`depositRate\` \| \`variableBorrowRate\` \| \`utilization\` \| \`totalDepositsUsd\` |
 | sortDir | enum | no | \`asc\` \| \`desc\` |
 | count | number | no | Results (default 100) |
+| maxRiskScore | number | no | Max risk score 1–5 (default 4, excludes score-5 high-risk markets) |
 
 ---
 
