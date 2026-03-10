@@ -4,6 +4,7 @@ import { createServer } from "http";
 import type { IncomingMessage, ServerResponse } from "http";
 import { createProvider, PROVIDERS, PROVIDER_INFO } from "./providers/index.js";
 import type { HistoryMessage } from "./providers/types.js";
+import { appendToSystemPrompt } from "./providers/types.js";
 
 const PORT = parseInt(process.env.PORT ?? "3001", 10);
 const MCP_SERVER_URL = process.env.MCP_SERVER_URL ?? "http://localhost:3002/mcp";
@@ -19,6 +20,26 @@ async function initializeMCPClient(): Promise<Client> {
   const { tools } = await mcp.listTools();
   console.log(`MCP server connected (${MCP_SERVER_URL}) — ${tools.length} tools available`);
   tools.forEach((t) => console.log(`  • ${t.name}`));
+
+  // Load documentation resources and append to system prompt so all providers
+  // get the authoritative chain/lender references and domain conventions.
+  // docs://tools  — full tool reference, APR definitions, liquidity rules
+  // docs://chains — human-readable chain name → ID mapping
+  // docs://lenders — valid lender ID strings for find_market / get_lending_markets
+  const resourceUris = ["docs://tools", "docs://chains", "docs://lenders"];
+  for (const uri of resourceUris) {
+    try {
+      const result = await mcp.readResource({ uri });
+      const text = (result.contents as { text?: string }[])
+        .map((c) => c.text ?? "")
+        .join("\n")
+        .trim();
+      if (text) appendToSystemPrompt(text);
+      console.log(`  ✓ loaded ${uri}`);
+    } catch (err) {
+      console.warn(`  ✗ could not load ${uri}:`, err instanceof Error ? err.message : err);
+    }
+  }
 
   return mcp;
 }
