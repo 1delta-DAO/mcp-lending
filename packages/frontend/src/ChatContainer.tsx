@@ -6,6 +6,7 @@ import type { Components } from 'react-markdown';
 import { useConnection } from 'wagmi';
 import { WalletButton } from './WalletButton';
 import { TxExecutor, type TxStep } from './TxExecutor';
+import { MarketList, type Market } from './MarketCard';
 import { Sidebar } from './Sidebar';
 import { EntityChip } from './EntityChip';
 import { t } from './theme';
@@ -34,6 +35,7 @@ interface Message {
   timestamp: Date;
   transactions?: TxStep[];
   quote?: Record<string, unknown>;
+  markets?: Market[];
 }
 
 export interface Chat {
@@ -132,6 +134,8 @@ export default function ChatContainer() {
     setActiveChatId(id);
   };
 
+  console.log('Rendering ChatContainer with chats:', chats);
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
@@ -158,7 +162,7 @@ export default function ChatContainer() {
     setIsLoading(true);
 
     try {
-      const { data } = await axios.post<{ response: string; transactions?: TxStep[]; quote?: Record<string, unknown> }>(
+      const { data } = await axios.post<{ response: string; transactions?: TxStep[]; quote?: Record<string, unknown>; markets?: Market[] }>(
         `${clientUrl}/chat`,
         {
           query: input,
@@ -178,6 +182,7 @@ export default function ChatContainer() {
         timestamp: new Date(),
         transactions: data.transactions,
         quote: data.quote,
+        markets: data.markets,
       };
 
       setChats(prev => prev.map(chat =>
@@ -328,6 +333,9 @@ export default function ChatContainer() {
                             : defaultUrlTransform(url)
                         }
                       >{message.content}</ReactMarkdown>
+                      {message.markets && message.markets.length > 0 && (
+                        <MarketList markets={message.markets} />
+                      )}
                       {message.transactions && message.transactions.length > 0 && (
                         <TxExecutor steps={message.transactions} quote={message.quote} />
                       )}
