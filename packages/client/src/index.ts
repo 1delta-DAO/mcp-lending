@@ -12,7 +12,12 @@ const MCP_SERVER_URL = process.env.MCP_SERVER_URL ?? "http://localhost:3002/mcp"
 let mcpClient: Client;
 
 async function initializeMCPClient(): Promise<Client> {
-  const transport = new StreamableHTTPClientTransport(new URL(MCP_SERVER_URL));
+  const oneDeltaApiKey = process.env.ONEDELTA_API_KEY;
+  const transport = new StreamableHTTPClientTransport(new URL(MCP_SERVER_URL), {
+    requestInit: oneDeltaApiKey
+      ? { headers: { Authorization: `Bearer ${oneDeltaApiKey}` } }
+      : undefined,
+  });
 
   const mcp = new Client({ name: "claude-lending-client", version: "0.1.0" });
   await mcp.connect(transport);

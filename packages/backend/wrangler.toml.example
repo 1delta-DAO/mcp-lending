@@ -11,7 +11,3 @@ bindings = [
 [[migrations]]
 tag = "v1"
 new_classes = ["McpSessionDO"]
-
-# Set your API key for production via: wrangler secret put ONEDELTA_API_KEY
-# For local dev, put it in .dev.vars (gitignored):
-#   ONEDELTA_API_KEY= "your-key-here"

@@ -4,7 +4,6 @@ import { createMcpServer } from "./mcp-server.js";
 
 export interface Env {
   MCP_SESSION: DurableObjectNamespace;
-  ONEDELTA_API_KEY?: string;
 }
 
 const CORS_HEADERS: Record<string, string> = {
@@ -84,16 +83,12 @@ export default {
 export class McpSessionDO {
   private transport?: WebStandardStreamableHTTPServerTransport;
 
-  constructor(
-    private state: DurableObjectState,
-    private env: Env,
-  ) {}
+  constructor(private state: DurableObjectState) {}
 
   async fetch(request: Request): Promise<Response> {
     if (!this.transport) {
-      // Extract optional API key from the initialize request's Authorization header.
       const authHeader = request.headers.get("authorization");
-      const clientApiKey = authHeader?.startsWith("Bearer ")
+      const apiKey = authHeader?.startsWith("Bearer ")
         ? authHeader.slice(7).trim() || undefined
         : undefined;
 
@@ -107,8 +102,7 @@ export class McpSessionDO {
         },
       });
 
-      const effectiveApiKey = clientApiKey ?? this.env.ONEDELTA_API_KEY;
-      const mcpServer = createMcpServer(effectiveApiKey);
+      const mcpServer = createMcpServer(apiKey);
       await mcpServer.connect(this.transport);
     }
 
