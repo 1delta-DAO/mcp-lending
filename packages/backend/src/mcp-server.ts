@@ -500,7 +500,7 @@ Through this server you can:
 | \`docs://overview\` | This document |
 | \`docs://authentication\` | How to authenticate for better rate limits |
 | \`docs://tools\` | Full tool reference with parameters and examples |
-| \`docs://chains\` | Supported chain IDs |
+| \`docs://chains\` | Supported chain IDs with human-readable names |
 | \`docs://lenders\` | Supported lending protocol identifiers |
 
 ## Quick start
@@ -640,12 +640,12 @@ Get all lending and borrowing positions for a wallet.
 ---
 
 ### \`get_supported_chains\`
-Returns the full list of supported chains with IDs and names. No parameters.
+Returns the live list of supported chain IDs (e.g. \`"1"\`, \`"42161"\`, \`"8453"\`). No parameters. Call this when you need to resolve a chain name to its ID or verify a chain is supported.
 
 ---
 
 ### \`get_lender_ids\`
-Returns all supported lending protocol identifiers (e.g. AAVE_V3, COMPOUND_V3, LENDLE). No parameters.
+Returns the live list of all supported lending protocol identifiers. No parameters. Call this to get valid \`lender\` parameter values for \`find_market\` and \`get_lending_markets\` — the list includes 130+ protocols (AAVE_V3, COMPOUND_V3, LENDLE, MOONWELL, MORPHO_BLUE, SILO_V2, EULER_V2, VENUS, and many more).
 
 ---
 
@@ -801,6 +801,28 @@ Each entry contains \`to\` (contract address), \`data\` (encoded calldata), and 
    → returns actions.permissions (approvals) + actions.transactions (main tx)
 4. Submit permissions first, then transactions — via wallet/signer on the target chain
 \`\`\`
+
+---
+
+## APR definitions
+
+- **depositRate** is the lender's deposit APR only — the yield the protocol pays on supplied assets.
+- **True depositor yield** = intrinsic asset APR + depositRate. Intrinsic APR comes from the underlying asset (e.g. staking yield for stETH). When unknown, present depositRate as the deposit APR and note that intrinsic yield may add to it.
+- **variableBorrowRate** is a cost paid by the borrower — a positive value means the user pays that interest.
+- **Net APR** for a deposit+borrow position (no leverage): Net APR = depositRate + intrinsicAPR − variableBorrowRate. Positive = earns; negative = pays net interest.
+- When presenting borrow rates, frame them as a cost: "you pay X% APR to borrow".
+- Do not conflate depositRate with full yield — always clarify that intrinsic asset yield may apply on top.
+
+---
+
+## Liquidity and TVL
+
+- **TVL** (totalDepositsUsd) = total deposits in a market.
+- **Available liquidity** (availableLiquidityUsd) = TVL × (1 − utilization). Represents funds available to borrow or withdraw — it has no bearing on whether new deposits are possible.
+- Depositing is always possible regardless of available liquidity. $0 available liquidity means 100% utilization (maximum deposit yield) — a positive signal for depositors, not a warning.
+- Never warn that $0 or low available liquidity prevents depositing. Only a supplyCap (not exposed in current data) could block new deposits.
+- Tools filter markets by TVL (default: $10,000 minimum via minTvlUsd). Each response includes a **filteredCount** field. If filteredCount > 0, append: *Note: X market(s) with less than $Y TVL were excluded.*
+- If the user asks for all markets including small ones, pass minTvlUsd: 0 to the tool.
 `,
         },
       ],
@@ -818,30 +840,43 @@ Each entry contains \`to\` (contract address), \`data\` (encoded calldata), and 
           mimeType: "text/markdown",
           text: `# Supported Chains
 
-Call \`get_supported_chains\` for the live list with full metadata.
-
-## Common chain IDs
+Call \`get_supported_chains\` to verify the live list. All \`chainId\` parameters are passed as **strings**.
 
 | Chain | ID |
 |-------|----|
 | Ethereum | 1 |
-| BNB Chain | 56 |
-| Polygon | 137 |
-| Optimism | 10 |
-| Arbitrum | 42161 |
-| Avalanche | 43114 |
-| Base | 8453 |
-| Mantle | 5000 |
-| Scroll | 534352 |
-| Linea | 59144 |
-| zkSync Era | 324 |
-| Polygon zkEVM | 1101 |
-| Metis | 1088 |
-| Taiko | 167000 |
+| OP Mainnet | 10 |
+| Cronos | 25 |
+| Telos | 40 |
+| XDC Network | 50 |
+| BNB Smart Chain | 56 |
 | Gnosis | 100 |
+| Unichain | 130 |
+| Polygon | 137 |
+| Monad | 143 |
+| Sonic | 146 |
+| Manta Pacific | 169 |
 | Fantom | 250 |
-
-All \`chainId\` parameters are passed as **strings** (e.g. \`"42161"\`).
+| Metis | 1088 |
+| Core DAO | 1116 |
+| Moonbeam | 1284 |
+| Sei Network | 1329 |
+| Soneium | 1868 |
+| Morph | 2818 |
+| Mantle | 5000 |
+| Klaytn | 8217 |
+| Base | 8453 |
+| Plasma | 9745 |
+| Mode | 34443 |
+| Arbitrum One | 42161 |
+| Hemi | 43111 |
+| Avalanche | 43114 |
+| Linea | 59144 |
+| Berachain | 80094 |
+| Blast | 81457 |
+| Taiko | 167000 |
+| Scroll | 534352 |
+| Katana | 747474 |
 `,
         },
       ],
@@ -859,27 +894,55 @@ All \`chainId\` parameters are passed as **strings** (e.g. \`"42161"\`).
           mimeType: "text/markdown",
           text: `# Supported Lending Protocols
 
-Call \`get_lender_ids\` for the live list.
-
-## Protocol identifiers
+Call \`get_lender_ids\` to verify the live list. Use these exact strings in the \`lender\` parameter of \`find_market\` and \`get_lending_markets\`.
 
 | ID | Protocol |
 |----|---------|
 | AAVE_V2 | Aave v2 |
 | AAVE_V3 | Aave v3 |
-| COMPOUND_V2 | Compound v2 |
-| COMPOUND_V3 | Compound v3 |
-| LENDLE | Lendle (Mantle) |
+| AAVE_V3_PRIME | Aave v3 Prime |
+| AAVE_V3_ETHER_FI | Aave v3 Ether.fi |
+| AAVE_V3_HORIZON | Aave v3 Horizon |
 | AURELIUS | Aurelius (Mantle) |
-| MENDI | Mendi Finance (Linea) |
-| MOONWELL | Moonwell (Base) |
-| SILO | Silo Finance |
-| RADIANT_V2 | Radiant Capital v2 |
-| MORPHO | Morpho |
+| LENDLE | Lendle (Mantle) |
+| LENDLE_CMETH | Lendle cMETH (Mantle) |
+| LENDLE_SUSDE | Lendle sUSDe (Mantle) |
+| MERIDIAN | Meridian |
 | SPARK | Spark Protocol |
+| MORPHO_BLUE | Morpho Blue |
+| RADIANT_V2 | Radiant Capital v2 |
+| ZEROLEND | ZeroLend |
+| AVALON | Avalon |
+| COMPOUND_V2 | Compound v2 |
+| COMPOUND_V3_USDC | Compound v3 USDC |
+| COMPOUND_V3_USDT | Compound v3 USDT |
+| COMPOUND_V3_USDE | Compound v3 USDe |
+| COMPOUND_V3_USDBC | Compound v3 USDbC |
+| COMPOUND_V3_USDCE | Compound v3 USDC.e |
+| COMPOUND_V3_USDS | Compound v3 USDS |
+| COMPOUND_V3_WETH | Compound v3 WETH |
+| COMPOUND_V3_WBTC | Compound v3 WBTC |
 | VENUS | Venus (BNB Chain) |
-
-Use these exact strings in the \`lender\` parameter of \`find_market\` and \`get_lending_markets\`.
+| VENUS_ETH | Venus ETH market |
+| VENUS_BNB | Venus BNB market |
+| VENUS_BTC | Venus BTC market |
+| BENQI | Benqi (Avalanche) |
+| MOONWELL | Moonwell (Base) |
+| MENDI | Mendi Finance (Linea) |
+| SILO_V2 | Silo v2 |
+| EULER_V2 | Euler v2 |
+| INIT | Init Capital |
+| LISTA_DAO | Lista DAO |
+| LAYERBANK_V3 | LayerBank v3 |
+| KEOM | Keom |
+| OVIX | 0VIX |
+| LODESTAR | Lodestar |
+| TECTONIC | Tectonic |
+| KINZA | Kinza Finance |
+| YLDR | YLDR |
+| HYPERLEND | HyperLend |
+| HYPURRFI | HypurrFi |
+| SWAYLEND_USDC | Swaylend USDC |
 `,
         },
       ],
