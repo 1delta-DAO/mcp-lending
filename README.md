@@ -1,6 +1,6 @@
 # MCP Lending Agent
 
-A Model Context Protocol (MCP) implementation for AI-powered interaction with the 1Delta lending platform. Monorepo with three packages: an MCP server, a multi-provider AI client, and a React chat frontend with wallet integration.
+An AI-powered chat interface for the [1Delta](https://1delta.io) DeFi lending aggregator, built on the [Model Context Protocol](https://modelcontextprotocol.io). Ask in plain English to explore markets, check positions, and execute deposits, withdrawals, borrows, and repayments — the agent handles market lookups, amount conversions, and transaction building automatically.
 
 ## Architecture
 
@@ -13,12 +13,21 @@ Frontend (React/Vite) ──POST /chat──▶ Client (Node.js HTTP) ──stdi
 
 ```
 packages/
-├── backend/    # MCP Server — exposes 1Delta API as MCP tools
-├── client/     # HTTP server — agentic AI loop, multi-provider bridge
-└── frontend/   # Chat UI — wallet, tx executor, provider selector
+├── backend/    # MCP Server — exposes 1Delta API as MCP tools (runs on Cloudflare Workers)
+├── client/     # HTTP server — agentic tool-use loop, multi-provider AI bridge
+└── frontend/   # Chat UI — wallet connection, transaction executor, provider selector
 ```
 
-See each package's README for details. Additional docs in [docs/](docs/).
+See each package's README for details.
+
+## Key features
+
+- **Multi-provider AI** — switch between Anthropic, OpenAI, Google, Groq, Mistral, and DeepSeek per message
+- **Wallet integration** — connect MetaMask (or any injected wallet); the agent queries your live positions automatically
+- **Transaction executor** — agent returns calldata; the UI submits each step sequentially with automatic chain switching
+- **Amount conversion** — `convert_amount` tool translates human-readable token or USD amounts to on-chain base units before every action; the agent always uses it
+- **34 supported chains** — all chains supported by 1Delta
+- **Rate limit transparency** — 429 errors from the 1Delta API are surfaced to the AI with instructions to request an API key
 
 ## Setup
 
@@ -27,6 +36,7 @@ See each package's README for details. Additional docs in [docs/](docs/).
 - Node.js ≥ 18
 - pnpm (latest)
 - At least one AI provider API key (see `packages/client/.env.example`)
+- A 1Delta API key is optional but recommended — get one at [auth.1delta.io](https://auth.1delta.io)
 
 ### Install & build
 
@@ -39,7 +49,8 @@ pnpm build
 
 ```bash
 cp packages/client/.env.example packages/client/.env
-# Fill in at least one API key
+# Fill in at least one AI provider API key
+# Optionally set ONEDELTA_API_KEY for higher 1Delta API rate limits
 ```
 
 ```bash
@@ -50,14 +61,15 @@ VITE_CLIENT_URL=http://localhost:3001
 ### Run
 
 ```bash
-# Start the backend (client + MCP server):
-pnpm start:backend   # http://localhost:3001
+# Start the MCP server (Cloudflare Worker, local dev):
+pnpm dev:worker    # http://localhost:8787
+
+# Start the client (separate terminal):
+pnpm dev:client    # http://localhost:3001
 
 # Start the frontend (separate terminal):
-pnpm start:frontend  # http://localhost:3000
+pnpm dev:frontend  # http://localhost:3000
 ```
-
-The backend is spawned automatically as a subprocess of the client.
 
 ## License
 
