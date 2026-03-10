@@ -71,6 +71,9 @@ const ACTION_TOOLS = new Set([
   "get_repay_calldata",
 ]);
 
+// Market tools whose results contain market data to surface in the UI.
+const MARKET_TOOLS = new Set(["find_market", "get_lending_markets"]);
+
 // Extract chainId from marketUid ("lender:chainId:tokenAddress").
 function chainIdFromMarketUid(marketUid: unknown): number | undefined {
   if (typeof marketUid !== "string") return undefined;
@@ -116,13 +119,18 @@ function extractAction(
 // ~4 chars per token → 6000 chars ≈ 1500 tokens per tool result.
 const TOOL_RESULT_CHAR_LIMIT = 6000;
 
-async function callMCPTool(name: string, input: Record<string, unknown>): Promise<string> {
+async function callMCPTool(
+  name: string,
+  input: Record<string, unknown>,
+  onRawResult?: (raw: string) => void,
+): Promise<string> {
   const attempt = async () => {
     const response = await mcpClient.callTool({ name, arguments: input });
     const text = (response.content as { type: string; text?: string }[])
       .filter((c) => c.type === "text" && c.text)
       .map((c) => c.text!)
       .join("\n");
+    onRawResult?.(text);
     if (text.length <= TOOL_RESULT_CHAR_LIMIT) return text;
     return text.slice(0, TOOL_RESULT_CHAR_LIMIT) + `\n[truncated — ${text.length - TOOL_RESULT_CHAR_LIMIT} chars omitted. Use tighter filters to reduce results.]`;
   };
@@ -204,11 +212,21 @@ async function main() {
           } else throw err;
         }
 
-        // Collect transaction calldata and quote returned by action tools during this request.
+        // Collect transaction calldata, quote, and market data returned by tools during this request.
         const collectedTxSteps: TxStep[] = [];
         let collectedQuote: Record<string, unknown> | undefined;
+        const collectedMarkets: Record<string, unknown>[] = [];
         const trackingCallTool = async (name: string, input: Record<string, unknown>): Promise<string> => {
-          const result = await callMCPTool(name, input);
+          const onRaw = MARKET_TOOLS.has(name)
+            ? (raw: string) => {
+                try {
+                  const parsed = JSON.parse(raw) as Record<string, unknown>;
+                  const markets = parsed.markets;
+                  if (Array.isArray(markets)) collectedMarkets.push(...markets as Record<string, unknown>[]);
+                } catch { /* ignore parse errors */ }
+              }
+            : undefined;
+          const result = await callMCPTool(name, input, onRaw);
           if (ACTION_TOOLS.has(name)) {
             const { steps, quote } = extractAction(name, result, input);
             collectedTxSteps.push(...steps);
@@ -227,6 +245,7 @@ async function main() {
           response,
           ...(collectedTxSteps.length > 0 && { transactions: collectedTxSteps }),
           ...(collectedQuote && { quote: collectedQuote }),
+          ...(collectedMarkets.length > 0 && { markets: collectedMarkets }),
         }));
       } catch (err) {
         console.error("Error processing query:", err);
