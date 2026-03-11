@@ -7,7 +7,7 @@ A [Model Context Protocol](https://modelcontextprotocol.io) server that gives AI
 ### Local development
 
 ```bash
-pnpm dev          # starts wrangler dev on http://localhost:8787
+pnpm worker:dev          # starts wrangler dev on http://localhost:8787
 ```
 
 Connect any MCP client to `http://localhost:8787/mcp`.
@@ -15,13 +15,7 @@ Connect any MCP client to `http://localhost:8787/mcp`.
 ### Deploy to Cloudflare
 
 ```bash
-pnpm deploy
-```
-
-Then set your API key as a secret (so the server-side fallback works for all users):
-
-```bash
-wrangler secret put ONEDELTA_API_KEY
+pnpm worker:deploy
 ```
 
 ## API key
@@ -40,8 +34,7 @@ The key is captured at session initialization and forwarded as `x-api-key` on ev
 
 **Key resolution order:**
 1. Client-supplied key via `Authorization: Bearer` header (per-session)
-2. `ONEDELTA_API_KEY` environment variable / Wrangler secret (server-wide fallback)
-3. No key — public rate limits apply
+2. No key — public rate limits apply
 
 ## Architecture
 
